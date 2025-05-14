@@ -1,0 +1,92 @@
+// compiler/src/lexer/tokenizer.rs
+use shared::token::{Token, TokenType};
+
+pub fn tokenize(source: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    let mut chars = source.chars().peekable();
+    let mut line = 1;
+
+    while let Some(c) = chars.next() {
+        let token = match c {
+            '=' => TokenType::Equals,
+            '+' => TokenType::Plus,
+            '-' => TokenType::Minus,
+            '*' => TokenType::Star,
+            '/' => TokenType::Slash,
+            '(' => TokenType::LParen,
+            ')' => TokenType::RParen,
+            '{' => TokenType::LBrace,
+            '}' => TokenType::RBrace,
+            ',' => TokenType::Comma,
+            ';' => TokenType::Semicolon,
+            '\n' => {
+                line += 1;
+                continue;
+            }
+            c if c.is_whitespace() => continue,
+            c if c.is_ascii_digit() => {
+                let mut number = c.to_string();
+                while let Some(next) = chars.peek() {
+                    if next.is_ascii_digit() || *next == '.' {
+                        number.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+
+                tokens.push(Token {
+                    kind: TokenType::Number,
+                    lexeme: number,
+                    line,
+                });
+                continue;
+            }
+            c if c.is_alphabetic() || c == '_' => {
+                let mut ident = c.to_string();
+                while let Some(next) = chars.peek() {
+                    if next.is_alphanumeric() || *next == '_' {
+                        ident.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+
+                let kind = match ident.as_str() {
+                    "let" => TokenType::Let,
+                    "const" => TokenType::Const,
+                    "fn" => TokenType::Fn,
+                    "true" => TokenType::True,
+                    "false" => TokenType::False,
+                    "if" => TokenType::If,
+                    "else" => TokenType::Else,
+                    "while" => TokenType::While,
+                    "return" => TokenType::Return,
+                    _ => TokenType::Identifier,
+                };
+
+                tokens.push(Token {
+                    kind,
+                    lexeme: ident,
+                    line,
+                });
+
+                continue;
+            }
+            _ => TokenType::Unknown,
+        };
+
+        tokens.push(Token {
+            kind: token,
+            lexeme: c.to_string(),
+            line,
+        });
+    }
+
+    tokens.push(Token {
+        kind: TokenType::Eof,
+        lexeme: "".to_string(),
+        line,
+    });
+
+    tokens
+}
