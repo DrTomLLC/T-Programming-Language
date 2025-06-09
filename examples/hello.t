@@ -1,1 +1,2 @@
-"Hello, T-Lang!";
+# examples/hello.t
+print("Hello, world!");
