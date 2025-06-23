@@ -6,7 +6,7 @@ use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
 /// All possible errors in the T-Lang system.
-#[derive(Error, Diagnostic, Debug, Clone)]
+#[derive(Error, Diagnostic, Debug)]
 pub enum TlError {
     #[error("Lexical error: {message}")]
     #[diagnostic(
