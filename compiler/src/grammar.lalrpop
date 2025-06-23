@@ -80,7 +80,8 @@ extern {
         "use" => TokenType::Use,
         "where" => TokenType::Where,
         "while" => TokenType::While,
-    
+        "_" => TokenType::Underscore,
+        
         // Punctuation
         "(" => TokenType::LParen,
         ")" => TokenType::RParen,
