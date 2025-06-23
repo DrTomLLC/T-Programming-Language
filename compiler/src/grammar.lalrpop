@@ -1,0 +1,80 @@
+// File: compiler/src/grammar.lalrpop
+grammar;
+
+// Use a String for user errors
+// Import the AST types & error helpers
+use crate::ast::*;
+use miette::SourceSpan;
+use lalrpop_util::ParseError;
+
+// Root nonterminal
+pub Program: Program = {
+    <stmts:StmtList> => Program { stmts, span: SourceSpan::default() }
+};
+
+StmtList: Vec<Stmt> = {
+    <s:Stmt> => vec![s],
+    <v:StmtList> <s:Stmt> => {
+        let mut v = v;
+        v.push(s);
+        v
+    }
+};
+
+Stmt: Stmt = {
+    // let x = expr;
+    "let" <id:Ident> "=" <e:Expr> ";" => Stmt::Local {
+        pat: Pattern::Identifier { name: id.clone(), capture: None, span: SourceSpan::default() },
+        ty: None,
+        init: Some(e),
+        attrs: Vec::new(),
+        span: SourceSpan::default(),
+    },
+    // expr;
+    <e:Expr> ";" => Stmt::Semi { expr: e, span: SourceSpan::default() }
+};
+
+Expr: Expr = {
+    // function call
+    <func:Expr> "(" ")" => Expr { kind: ExprKind::Call { func: Box::new(func), args: vec![] }, effects: Effects::empty() },
+    <func:Expr> "(" <args:ArgList> ")" => Expr { kind: ExprKind::Call { func: Box::new(func), args }, effects: Effects::empty() },
+
+    // string literal
+    <s:StringLiteral> => Expr { kind: ExprKind::Literal(Literal::String(s.clone()), SourceSpan::default()), effects: Effects::empty() },
+
+    // integer literal, with user-error on bad parse
+    <d:IntLiteralToken> => match d.parse::<i64>() {
+        Ok(n)   => Expr { kind: ExprKind::Literal(Literal::Integer(n), SourceSpan::default()), effects: Effects::empty() },
+        Err(_)  => return Err(ParseError::User { error: format!("invalid integer literal: {}", d) }),
+    },
+
+    // identifier
+    <id:Ident> => Expr { kind: ExprKind::Variable(vec![id.clone()], SourceSpan::default()), effects: Effects::empty() },
+
+    // grouping
+    "(" <e:Expr> ")" => Expr { kind: ExprKind::Grouping(Box::new(e), SourceSpan::default()), effects: Effects::empty() },
+};
+
+ArgList: Vec<Expr> = {
+    <e:Expr> => vec![e],
+    <mut v:ArgList> "," <e:Expr> => { v.push(e); v }
+};
+
+// Simple identifier token
+Ident: String = {
+    <i:r#"[a-zA-Z_][a-zA-Z0-9_]*"#> => i.to_string()
+};
+
+// Unescape a JSON-style string literal
+StringLiteral: String = {
+    <s:r#""([^"\\]|\\.)*""#> => {
+        let inner = &s[1..s.len()-1];
+        inner.replace("\\n", "\n").replace("\\\"", "\"")
+    }
+};
+
+// A separate token so we can parse it by hand
+IntLiteralToken: String = {
+    <d:r#"[0-9]+"#> => d.to_string()
+}
+;

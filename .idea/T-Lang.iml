@@ -8,6 +8,16 @@
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/tlang/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tlang/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/errors/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/plugin_api/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tlang-lsp/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/compiler/src/backends/cranelift/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/app/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dummy_backend/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/example_backend/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/llvm_backend/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tstd/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/app/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

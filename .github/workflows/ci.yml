@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout your code (v3 exists today)
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2) Install Rust (with rustfmt & clippy) via the canonical Rust toolchain action
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: "1.72.0"
+          components: rustfmt, clippy
+
+      # 3) Cache registry, git-index, and build artifacts
+      - name: Cache dependencies and build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # 4) Enforce formatting
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      # 5) Build & Test
+      - name: Build workspace
+        run: cargo build --workspace --locked
+
+      - name: Run tests
+        run: cargo test --workspace -- --nocapture
+
+      # 6) Lint with Clippy
+      - name: Lint with Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      # 7) Audit dependencies
+      - name: Audit for vulnerable crates
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 8) Ban unwrap/expect/panic!
+      - name: Scan for forbidden calls
+        run: |
+          echo "🔍 Scanning for unwrap/expect/panic!"
+          matches=$(git grep -nE 'unwrap\(|expect\(|panic!' -- src/ || true)
+          if [ -n "$matches" ]; then
+            echo "$matches"
+            exit 1
+          fi
+
+      # 9) Ensure no file exceeds 100 lines
+      - name: Enforce 100‑line max per file
+        run: |
+          echo "🔍 Ensuring no file >100 lines"
+          find . -type f \( -name '*.rs' -o -name 'Cargo.toml' \) -not -path './target/*' | \
+            while read -r f; do
+              lines=$(wc -l < "$f")
+              if [ "$lines" -gt 100 ]; then
+                echo "::error file=$f::${lines} lines (exceeds 100)"
+                exit 1
+              fi
+            done

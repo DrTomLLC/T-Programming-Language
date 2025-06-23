@@ -1,0 +1,41 @@
+# plugin_api/Cargo.toml
+[package]
+name = "plugin_api"
+version = "0.1.0"
+edition = "2024"
+description = "Defines the Backend trait, CompiledModule, and registry (register_backend / list_backends)."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+shared = { path = "../shared" }
+errors = { path = "../errors" }
+anyhow = "1.0.98"
+parking_lot  = "0.12.4"
+thiserror = "2.0.12"
+once_cell = "1.21.3"
+
+[features]
+# Operating Systems
+windows      = []
+linux        = []
+macos        = []
+ios          = []
+android      = []
+embedded-os  = []
+
+# Application types
+desktop      = ["windows","linux","macos"]
+mobile       = ["ios","android"]
+web          = []
+
+# Databases
+db-sql       = []
+db-nosql     = []
+db-graph     = []
+postgres     = ["db-sql"]
+database     = ["db-sql","db-nosql","db-graph","postgres"]
+
+# … and so on …
+default = [
+    "desktop","web","database","embedded-os","mobile"
+]

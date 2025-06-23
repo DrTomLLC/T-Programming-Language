@@ -2,9 +2,9 @@
 //! expressions, statements, metadata, and extensibility hooks.
 
 use std::collections::HashMap;
-use bitflags::bitflags;
 use crate::token::Token;
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use enumflags2::{bitflags, BitFlags};
 
 /// A byte‑range within the source file.
 #[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
@@ -19,13 +19,18 @@ pub struct AST {
     pub src: String,
     pub items: Vec<Item>,
     pub spans: Vec<Span>,
+    pub stmts: ()
 }
 
 impl AST {
+    /// Construct a new AST. Items are now Vec<Item>.
     pub fn new(src: String, items: Vec<Item>, spans: Vec<Span>) -> Self {
-        AST { src, items, spans }
+        AST { src, items, spans, stmts: () }
     }
 }
+
+/// Alias so that `Statement` refers to top‐level `Item`.
+pub type Statement = Item;
 
 /// Plugin hook: any future extension can attach custom data here.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -33,6 +38,9 @@ pub enum Extension {
     Unknown,               // placeholder
     Custom(String, Vec<u8>), // name + raw payload
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum MetaItem { /* … */ }
 
 /// Attributes and metadata (docs, lints, energy hints, deprecation).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -42,28 +50,62 @@ pub struct Attribute {
     pub span: Span,
 }
 
-// … other imports …
+#[bitflags]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Effects on expressions (pure, io, async, unsafe, etc.)
+pub enum Effects {
+    Pure   = 0b0000_0001,
+    Io     = 0b0000_0010,
+    Async  = 0b0000_0100,
+    Unsafe = 0b0000_1000,
+}
 
-/// Key/value metadata in attributes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum MetaItem { /* … */ }
+// alias so your code stays the same:
+pub type EffectsFlags = BitFlags<Effects>;
 
-bitflags! {
-    /// bitflags for effects on expressions (pure, io, async, unsafe, etc.)
-    pub struct Effects: u8 {
-        const PURE   = 0b00000001;
-        const IO     = 0b00000010;
-        const ASYNC  = 0b00000100;
-        const UNSAFE = 0b00001000;
-    }
+// Use a custom wrapper function instead of implementing Default directly
+pub fn default_effects_flags() -> EffectsFlags {
+    BitFlags::empty()
 }
 
 impl Default for Effects {
     fn default() -> Self {
-        Effects::empty()
+        Effects::Pure
     }
 }
 
+// Manual serde impls for transparent u8:
+impl Serialize for Effects {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+impl<'de> Deserialize<'de> for Effects {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use enumflags2::BitFlag;
+        let bits = u8::deserialize(deserializer)?;
+        let flags = BitFlags::<Effects>::from_bits_truncate(bits);
+        if flags.is_empty() {
+            Ok(Effects::Pure)
+        } else if flags.contains(Effects::Pure) {
+            Ok(Effects::Pure)
+        } else if flags.contains(Effects::Io) {
+            Ok(Effects::Io)
+        } else if flags.contains(Effects::Async) {
+            Ok(Effects::Async)
+        } else {
+            Ok(Effects::Unsafe)
+        }
+    }
+}
 
 /// Top‑level items in a module or file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -117,8 +159,8 @@ pub enum Item {
     },
     ExternBlock {
         attrs: Vec<Attribute>,
-        abi: String,                // e.g. "C", "Swift", "Mojo"
-        linkage: Option<String>,    // optional DLL/shared flags
+        abi: String,
+        linkage: Option<String>,
         items: Vec<Item>,
         span: Span,
     },
@@ -234,69 +276,46 @@ pub enum Literal {
 /// Type references, with explicit ownership/borrowing.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeRef {
-    Infer,                                     // `_`
-    Path(Vec<String>),                         // `std::io::Result`
-    Generic(String),                           // `T`
-    Function(Vec<TypeRef>, Box<TypeRef>),      // `(A,B)->C`
-    Tuple(Vec<TypeRef>),                       // `(A,B,C)`
-    Array(Box<TypeRef>, Option<usize>),        // `[T; N]` or `[T]`
-    Reference {                                // `&T` or `&mut T`
-        is_mut: bool,
-        inner: Box<TypeRef>,
-    },
-    Pointer {                                  // `*const T` or `*mut T`
-        is_mut: bool,
-        inner: Box<TypeRef>,
-    },
-    Owned(Box<TypeRef>),                       // T by value
-    Borrowed(Box<TypeRef>),                    // &T
-    BorrowedMut(Box<TypeRef>),                 // &mut T
-    ImplTrait(Vec<TypeRef>),                   // `impl Trait+...`
-    DynTrait(Vec<TypeRef>),                    // `dyn Trait+...`
-    Never,                                     // `!`
-    Unit,                                      // `()`
+    Infer,
+    Path(Vec<String>),
+    Generic(String),
+    Function(Vec<TypeRef>, Box<TypeRef>),
+    Tuple(Vec<TypeRef>),
+    Array(Box<TypeRef>, Option<usize>),
+    Reference { is_mut: bool, inner: Box<TypeRef> },
+    Pointer   { is_mut: bool, inner: Box<TypeRef> },
+    Owned     (Box<TypeRef>),
+    Borrowed  (Box<TypeRef>),
+    BorrowedMut(Box<TypeRef>),
+    ImplTrait(Vec<TypeRef>),
+    DynTrait(Vec<TypeRef>),
+    Never,
+    Unit,
+}
+
+/// How closures/async capture.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum CaptureBy {
+    Ref,     // `|&x|`
+    Mut,     // `|&mut x|`
+    Value,   // `|x|`
 }
 
 /// Pattern matching.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
-    Wildcard,                                  // `_`
+    Wildcard,
     Literal(Literal),
-    Identifier {
-        name: String,
-        capture: Option<CaptureBy>,           // Owned/Ref/Mut
-        span: Span,
-    },
-    Reference {
-        is_mut: bool,
-        pat: Box<Pattern>,
-    },
-    Struct {
-        path: Vec<String>,
-        fields: HashMap<String, Pattern>,
-        rest: bool,
-    },
-    Tuple(Vec<Pattern>),
-    TupleStruct {
-        path: Vec<String>,
-        elems: Vec<Pattern>,
-    },
-    Slice {
-        front: Vec<Pattern>,
-        rest: Option<Box<Pattern>>,
-        back: Vec<Pattern>,
-    },
-    Or(Vec<Pattern>),
-    Range {
-        start: Option<Literal>,
-        end: Option<Literal>,
-        inclusive: bool,
-    },
-    Binding {
-        name: String,
-        subpat: Option<Box<Pattern>>,
-    },
-    Macro(Vec<String>, TokenStream),
+    Identifier { name: String, capture: Option<CaptureBy>, span: Span },
+    Reference { is_mut: bool, pat: Box<Pattern> },
+    Struct     { path: Vec<String>, fields: HashMap<String, Pattern>, rest: bool },
+    Tuple      (Vec<Pattern>),
+    TupleStruct{ path: Vec<String>, elems: Vec<Pattern> },
+    Slice      { front: Vec<Pattern>, rest: Option<Box<Pattern>>, back: Vec<Pattern> },
+    Or         (Vec<Pattern>),
+    Range      { start: Option<Literal>, end: Option<Literal>, inclusive: bool },
+    Binding    { name: String, subpat: Option<Box<Pattern>> },
+    Macro      (Vec<String>, TokenStream),
 }
 
 /// A block of statements, possibly ending in an expression.
@@ -310,23 +329,11 @@ pub struct Block {
 /// Statements.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Stmt {
-    Local {
-        pat: Pattern,
-        ty: Option<TypeRef>,
-        init: Option<Expr>,
-        attrs: Vec<Attribute>,
-        span: Span,
-    },
-    Expr {
-        expr: Expr,
-        span: Span,
-    },
-    Semi {
-        expr: Expr,
-        span: Span,
-    },
-    Item(Item),
-    Macro(Vec<String>, TokenStream, Span),
+    Local { pat: Pattern, ty: Option<TypeRef>, init: Option<Expr>, attrs: Vec<Attribute>, span: Span },
+    Expr  { expr: Expr, span: Span },
+    Semi  { expr: Expr, span: Span },
+    Item  (Item),
+    Macro (Vec<String>, TokenStream, Span),
     Extension(Extension),
 }
 
@@ -334,153 +341,76 @@ pub enum Stmt {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Expr {
     pub kind: ExprKind,
-    pub effects: Effects,
+    #[serde(default, skip_serializing, skip_deserializing)]
+    pub effects: EffectsFlags,
+}
+
+/// Unary operators
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum UnaryOp {
+    Neg,  // -
+    Not,  // !
+    Deref, // *
+    Ref,   // &
+    RefMut, // &mut
+}
+
+/// Binary operators
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum BinaryOp {
+    Add,      // +
+    Sub,      // -
+    Mul,      // *
+    Div,      // /
+    Rem,      // %
+    And,      // &&
+    Or,       // ||
+    BitAnd,   // &
+    BitOr,    // |
+    BitXor,   // ^
+    Shl,      // <<
+    Shr,      // >>
+    Eq,       // ==
+    Ne,       // !=
+    Lt,       // <
+    Le,       // <=
+    Gt,       // >
+    Ge,       // >=
+    Assign,   // =
 }
 
 /// The variant of expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExprKind {
-    Literal(Literal, Span),
-    Variable(Vec<String>, Span),
-    Grouping(Box<Expr>, Span),
-    Unary {
-        op: UnaryOp,
-        expr: Box<Expr>,
-        span: Span,
-    },
-    Binary {
-        left: Box<Expr>,
-        op: BinaryOp,
-        right: Box<Expr>,
-        span: Span,
-    },
-    Call {
-        func: Box<Expr>,
-        args: Vec<Expr>,
-        span: Span,
-    },
-    MethodCall {
-        receiver: Box<Expr>,
-        method: String,
-        args: Vec<Expr>,
-        span: Span,
-    },
-    If {
-        cond: Box<Expr>,
-        then_branch: Block,
-        else_branch: Option<Box<Expr>>,
-        span: Span,
-    },
-    While {
-        cond: Box<Expr>,
-        body: Block,
-        is_loop: bool,
-        span: Span,
-    },
-    For {
-        pat: Pattern,
-        iter: Box<Expr>,
-        body: Block,
-        span: Span,
-    },
-    Loop {
-        body: Block,
-        span: Span,
-    },
-    Match {
-        expr: Box<Expr>,
-        arms: Vec<MatchArm>,
-        span: Span,
-    },
-    Closure {
-        capture_by: CaptureBy,
-        params: Vec<Param>,
-        return_ty: Option<TypeRef>,
-        body: Box<Expr>,
-        is_async: bool,
-        is_move: bool,
-        span: Span,
-    },
-    BlockExpr(Block),
-    Async {
-        capture_by: CaptureBy,
-        block: Block,
-        span: Span,
-    },
-    Await {
-        expr: Box<Expr>,
-        span: Span,
-    },
-    Try {
-        expr: Box<Expr>,
-        span: Span,
-    },
-    Cast {
-        expr: Box<Expr>,
-        ty: TypeRef,
-        span: Span,
-    },
-    TypeAscription {
-        expr: Box<Expr>,
-        ty: TypeRef,
-        span: Span,
-    },
-    Tuple(Vec<Expr>, Span),
-    Array(Vec<Expr>, Span),
-    Index {
-        expr: Box<Expr>,
-        index: Box<Expr>,
-        span: Span,
-    },
-    Field {
-        expr: Box<Expr>,
-        name: String,
-        span: Span,
-    },
-    Range {
-        start: Option<Box<Expr>>,
-        end: Option<Box<Expr>>,
-        inclusive: bool,
-        span: Span,
-    },
-    StructLit {
-        path: Vec<String>,
-        fields: HashMap<String, Expr>,
-        rest: Option<Box<Expr>>,
-        span: Span,
-    },
-    MacroCall {
-        path: Vec<String>,
-        tokens: TokenStream,
-        span: Span,
-    },
-    Extension(Extension),
+    Literal     (Literal, Span),
+    Variable    (Vec<String>, Span),
+    Grouping    (Box<Expr>, Span),
+    Unary       { op: UnaryOp, expr: Box<Expr>, span: Span },
+    Binary      { left: Box<Expr>, op: BinaryOp, right: Box<Expr>, span: Span },
+    Call        { func: Box<Expr>, args: Vec<Expr>, span: Span },
+    MethodCall  { receiver: Box<Expr>, method: String, args: Vec<Expr>, span: Span },
+    If          { cond: Box<Expr>, then_branch: Block, else_branch: Option<Box<Expr>>, span: Span },
+    While       { cond: Box<Expr>, body: Block, is_loop: bool, span: Span },
+    For         { pat: Pattern, iter: Box<Expr>, body: Block, span: Span },
+    Loop        { body: Block, span: Span },
+    Match       { expr: Box<Expr>, arms: Vec<MatchArm>, span: Span },
+    Closure     { capture_by: CaptureBy, params: Vec<Param>, return_ty: Option<TypeRef>, body: Box<Expr>, is_async: bool, is_move: bool, span: Span },
+    BlockExpr   (Block),
+    Async       { capture_by: CaptureBy, block: Block, span: Span },
+    Await       { expr: Box<Expr>, span: Span },
+    Try         { expr: Box<Expr>, span: Span },
+    Cast        { expr: Box<Expr>, ty: TypeRef, span: Span },
+    TypeAscription { expr: Box<Expr>, ty: TypeRef, span: Span },
+    Tuple       (Vec<Expr>, Span),
+    Array       (Vec<Expr>, Span),
+    Index       { expr: Box<Expr>, index: Box<Expr>, span: Span },
+    Field       { expr: Box<Expr>, name: String, span: Span },
+    Range       { start: Option<Box<Expr>>, end: Option<Box<Expr>>, inclusive: bool, span: Span },
+    StructLit   { path: Vec<String>, fields: HashMap<String, Expr>, rest: Option<Box<Expr>>, span: Span },
+    MacroCall   { path: Vec<String>, tokens: TokenStream, span: Span },
+    Extension   (Extension),
 }
 
-/// Binary operators.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum BinaryOp {
-    Add, Sub, Mul, Div, Mod,
-    And, Or,
-    BitAnd, BitOr, BitXor, Shl, Shr,
-    Eq, Ne, Lt, Le, Gt, Ge,
-}
-
-/// Unary operators.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum UnaryOp {
-    Neg, Not, Deref,
-}
-
-/// How closures/async capture.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum CaptureBy {
-    Ref,     // `|&x|`
-    Mut,     // `|&mut x|`
-    Value,   // `|x|`
-}
-
-/// One arm of a `match`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchArm {
     pub pat: Pattern,

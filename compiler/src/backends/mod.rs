@@ -1,0 +1,32 @@
+// File: compiler/src/backends/mod.rs
+//! Declare all backend modules here.
+
+pub mod asm;
+pub mod c;
+pub mod clojure;
+pub mod cobol;
+pub mod css;
+pub mod elixir;
+pub mod erlang;
+pub mod go;
+pub mod haskell;
+pub mod html;
+pub mod java;
+pub mod javascript;
+pub mod kotlin;
+pub mod llvm_backend;
+pub mod lua;
+pub mod nim;
+pub mod ocaml;
+pub mod powershell;
+pub mod r;
+pub mod ruby;
+pub mod rust;
+pub mod scheme;
+pub mod shell;
+pub mod swift;
+pub mod typescript;
+pub mod v;
+pub mod zig;
+pub mod wasm;
+pub mod python;

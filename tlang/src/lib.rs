@@ -1,18 +1,16 @@
-use compiler::runtime::eval::Interpreter;
-pub use compiler::parser::expr::parse;
-use shared::tokenizer::tokenize;
+// tlang/src/lib.rs
 
-pub fn run_source(source: &str) -> Result<String, String> {
-    let tokens = tokenize(source).map_err(|e| e.to_string())?;
-    let statements = parse(tokens).map_err(|e| e.to_string())?;
+//! T-Lang library: exposes runner and REPL functionality.
 
-    let mut eval = Interpreter::new();
-    let mut out = String::new();
+pub mod runner;
+pub mod repl;
 
-    for stmt in statements {
-        let val = eval.eval_stmt(stmt, 0).map_err(|e| e.to_string())?;
-        out.push_str(&format!("{:?}\n", val)); // Use Debug until Display is implemented
-    }
+pub use runner::run_file;
+pub use repl::start_repl;
 
-    Ok(out)
+/// This is the entry point for your evaluator.
+/// Adjust the signature and body to call into your compiler/runtime.
+pub fn evaluate(input: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // TODO: hook up your real compiler/interpreter here.
+    Ok(format!("(evaluated '{}')", input))
 }

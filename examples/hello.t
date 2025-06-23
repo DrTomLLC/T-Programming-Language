@@ -1,2 +1,2 @@
 # examples/hello.t
-print("Hello, world!");
+print("Hello, T-Lang!\n");

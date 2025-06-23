@@ -1,0 +1,11 @@
+// compiler/src/lexer/mod.rs
+
+use shared::token::Token;
+use shared::CompileError;
+use shared::tokenizer::tokenize as raw_tokenize;
+
+/// Tokenize the input source string into a vector of typed `Token`s.
+/// Any lexing error is propagated directly as `CompileError::Tokenize`.
+pub fn tokenize(src: &str) -> Result<Vec<Token>, CompileError> {
+    raw_tokenize(src)
+}

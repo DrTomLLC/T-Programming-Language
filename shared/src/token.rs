@@ -4,9 +4,10 @@
 //! and utility constructors for both raw and typed tokens.
 
 use crate::ast::Span;
+use serde::{Serialize, Deserialize};
 
 /// The kind of token parsed by the lexer.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TokenType {
     // Keywords
     Let, Const, Fn, If, Else, While, Return,
@@ -71,8 +72,8 @@ impl TokenType {
     }
 }
 
-/// A raw token with byte‑offset span, as produced by the tokenizer.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A raw token with a byte‑offset span, as produced by the tokenizer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RawToken {
     pub kind:     TokenType,
     pub lexeme:   String,
@@ -90,7 +91,7 @@ impl RawToken {
     }
 }
 /// A typed token including line/column for REPL and error‑reporting.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Token {
     pub kind:   TokenType,
     pub lexeme: String,
