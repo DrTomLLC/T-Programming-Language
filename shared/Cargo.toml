@@ -5,5 +5,44 @@ edition = "2024"
 
 [lib]
 path = "src/lib.rs"
+
 [dependencies]
+errors = { path = "../errors" }
 thiserror = "2.0.12"
+miette = { version = "7.6.0", features = ["fancy"] }
+serde    = { version = "1.0.219", features = ["derive"] }
+anyhow = "1.0.98"
+enumflags2 = "0.7.11"
+# (no bitflags)
+
+# DO NOT EVER UPDATE bitflags! past 1.3.2. ANY Version higher breaks the compiler.
+# bitflags! calls the Dervive macro which is not compatible with the compiler. Due to being implimented in a different crate,
+# for the Struct. There will be 2 Error messages: Duplicate Derive macro for the same struct and bitflags!.
+# This is a known issue with the derive macro in bitflags! and the compiler.
+# See: https://github.com/rust-lang/rust/issues/103744
+
+[features]
+# Operating Systems
+windows      = []
+linux        = []
+macos        = []
+ios          = []
+android      = []
+embedded-os  = []
+
+# Application types
+desktop      = ["windows","linux","macos"]
+mobile       = ["ios","android"]
+web          = []
+
+# Databases
+db-sql       = []
+db-nosql     = []
+db-graph     = []
+postgres     = ["db-sql"]
+database     = ["db-sql","db-nosql","db-graph","postgres"]
+
+# … and so on …
+default = [
+    "desktop","web","database","embedded-os","mobile"
+]

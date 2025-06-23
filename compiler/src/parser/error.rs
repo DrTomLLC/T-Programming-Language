@@ -1,4 +1,5 @@
-use shared::tokenizer::LexError;
+/// T-Lang /compiler/parser.error.rs
+use crate::error::LexError;
 use thiserror::Error;
 
 /// Parse errors for T-Lang.

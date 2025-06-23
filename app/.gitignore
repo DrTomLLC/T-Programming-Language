@@ -1,0 +1,30 @@
+# T Language Project .gitignore
+
+# Build artifacts
+/build/
+/out/
+/dist/
+/bin/
+/*.tbuild
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Dependency caches
+/.targo/
+/.tup/
+
+# Examples
+/examples/*/output/

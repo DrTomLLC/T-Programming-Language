@@ -8,20 +8,20 @@ use crate::parser::Parser;
 use crate::runtime::env::Environment;
 use crate::runtime::error::RuntimeError;
 use crate::runtime::value::Value;
-use crate::runtime::eval::Interpreter;
 
 #[cfg(test)]
 mod parser_eval_tests {
     use super::*;
+    use crate::runtime::eval::Evaluator;
 
     #[test]
     fn if_expr_evaluates() -> Result<(), RuntimeError> {
         let tokens = tokenize("if (1 < 2) { 3; } else { 4; };")
-            .map_err(|e| RuntimeError::LexError(e.to_string()))?;
+            .map_err(|e| RuntimeError::from(format!("Lexer error: {}", e)))?;
         let mut p = Parser::new(tokens);
-        let stmts = p.parse() .map_err(|e| RuntimeError::ParseError(e.to_string()))?;
+        let stmts = p.parse().map_err(|e| RuntimeError::from(format!("Parser error: {}", e)))?;
         let mut env = Environment::new();
-        let mut last = Value::Unit;
+        let mut last = Value::default();
         for stmt in stmts {
             last = Evaluator::new(&mut env).eval_stmt(stmt)?;
         }
@@ -36,25 +36,26 @@ mod parser_eval_tests {
         let mut p = Parser::new(tokens);
         let stmts = p.parse().map_err(|e| RuntimeError::ParseError(e.to_string()))?;
         let mut env = Environment::new();
-        let mut last = Value::Unit;
+        let mut last = Value::default();
         for stmt in stmts {
             last = Evaluator::new(&mut env).eval_stmt(stmt)?;
         }
         assert_eq!(last, Value::Number(3.0));
         Ok(())
     }
-}
-#[test]
-fn eval_string_literal_statement() {
-    let mut env = Environment::new();
-    let mut evaluator = Evaluator::new(&mut env);
-    let stmts = Parser::from_source(r#""hello";"#)
-        .unwrap()
-        .parse()
-        .unwrap();
-    // Should be exactly one Expr-stmt returning the string "hello"
-    match evaluator.eval_stmt(stmts.into_iter().next().unwrap()) {
-        Ok(val) => assert_eq!(val.to_string(), r#""hello""#),
-        Err(e)  => panic!("Expected string literal eval, got error: {}", e),
+
+    #[test]
+    fn eval_string_literal_statement() {
+        let mut env = Environment::new();
+        let mut evaluator = Evaluator::new(&mut env);
+        let stmts = Parser::from_source(r#""hello";"#)
+            .unwrap()
+            .parse()
+            .unwrap();
+        // Should be exactly one Expr-stmt returning the string "hello"
+        match evaluator.eval_stmt(stmts.into_iter().next().unwrap()) {
+            Ok(val) => assert_eq!(val.to_string(), r#""hello""#),
+            Err(e)  => panic!("Expected string literal eval, got error: {}", e),
+        }
     }
 }

@@ -1,0 +1,9 @@
+[package]
+name = "example_backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+plugin_api = { path = "../plugin_api" }
+ctor = "0.4.2"
+anyhow = "1.0.98"

@@ -3,8 +3,25 @@ resolver = "2"
 members = [
     "shared",
     "compiler",
-    "tlang"
+    "tstd",
+    "tlang",
+    "errors",
+    "tlang-lsp",
+    "plugin_api",
+    "app",
 ]
 
 [workspace.package]
 edition = "2024"
+
+[workspace.dependencies]
+thiserror   = "2.0.12"
+miette      = "7.6.0"
+clap        = { version = "4.5.39", features = ["derive"] }
+notify      = "8.0.0"
+parking_lot = "0.12.4"
+serde_json  = "1.0.140"
+syntect     = { version = "5.2.0", features = ["default"] }
+inkwell     = "0.6.0"
+anyhow      = "1.0.98"
+reedline = { version = "0.40.0", default-features = false, features = ["termion-support"] }

@@ -1,0 +1,29 @@
+The T Language License (v1.0)
+
+Copyright (c) 2025 Tom Neilan
+
+Permission is hereby granted to use, copy, modify, distribute, and contribute to this software and its source code, subject to the following conditions:
+
+1. Attribution
+   - The original creator Tom Neilan must be clearly credited in all derivative works and public usage.
+   - The name "T" and its core identity must not be misrepresented in any forked or derivative version.
+
+2. Contributions
+   - All contributions are welcome and encouraged.
+   - Substantial contributions may be merged into the official T project under review and guidance of the original creator or designated maintainers.
+
+3. Commercial Use
+   - Commercial usage is allowed.
+   - However, any commercial fork, product, or service built substantially upon T must:
+     - Credit the original project and author.
+     - Share significant improvements, modifications, or fixes publicly.
+
+4. Vision & Governance
+   - The original creator retains directional and governance control of the official T language and associated tooling.
+
+5. Liability
+   - The software is provided "as is", without warranty of any kind. The original creator is not liable for any damages or consequences arising from its use.
+
+This license aims to encourage open collaboration while preserving the origin, integrity, and long-term vision of the T language.
+
+For questions or licensing permissions beyond this document, contact: [your.email@example.com]

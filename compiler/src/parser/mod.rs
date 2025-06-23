@@ -1,10 +1,16 @@
-// compiler/src/parser/mod.rs
-mod error;
-pub mod expr;
-//  mod stmt;
-#[cfg(test)]
-mod tests;
+// File: compiler/src/parser/mod.rs
 
-// Re‑export the main parser and its helper
-pub use expr::Parser;
-pub use expr::is_identifier;
+//! Main entry point for the T‑Lang parser.
+//!
+//! This module organizes the submodules responsible for parsing different
+//! parts of the language: modules, declarations, statements, expressions,
+//! patterns, and types.
+
+mod modules;
+mod declarations;
+mod statements;
+mod expressions;
+mod patterns;
+mod types;
+
+pub use modules::parse_module;

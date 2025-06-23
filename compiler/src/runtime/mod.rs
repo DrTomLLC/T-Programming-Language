@@ -1,13 +1,10 @@
 // compiler/src/runtime/mod.rs
-pub mod value;
-pub mod env;
+
 pub mod eval;
+pub mod env;
+pub mod value;
 
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-mod parser_eval_tests;
-pub mod error;
-
-// pub use error::RuntimeError;
+/// Execute a sequence of runtime instructions (IR) represented as a vector of Values.
+/// This is the primary runtime entry point after code generation.
+pub use value::execute;
+pub use eval::Evaluator;

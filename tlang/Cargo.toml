@@ -1,20 +1,48 @@
+# File: tlang/Cargo.toml
+
 [package]
 name = "tlang"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-shared = { path = "../shared" }
 compiler = { path = "../compiler" }
-predicates = "3.1.3"
-clap = { version = "4.5.37", features = ["derive"] }
+shared   = { path = "../shared" }
+errors   = { path = "../errors" }
+clap     = { version = "4.5.39", features = ["derive"] }
+env_logger = "0.11.8"
+log        = "0.4.27"
+anyhow = "1.0.98"
 
 [dev-dependencies]
-assert_cmd = "2.0.17"
-predicates = "3.1.3"
-wait-timeout = "0.2"
-ntest = "0.9"
+assert_cmd   = "2.0.17"
+predicates   = "3.1.3"
+wait-timeout = "0.2.1"
+ntest        = "0.9.3"
+tempfile     = "3.20.0"
 
 [[bin]]
 name = "tlang"
 path = "src/main.rs"
+
+[features]
+# Operating Systems
+windows      = []
+linux        = []
+macos        = []
+ios          = []
+android      = []
+embedded-os  = []
+
+desktop      = ["windows","linux","macos"]
+mobile       = ["ios","android"]
+web          = []
+
+# Databases
+db-sql       = []
+db-nosql     = []
+db-graph     = []
+postgres     = ["db-sql"]
+database     = ["db-sql","db-nosql","db-graph","postgres"]
+
+default = ["desktop","web","database","embedded-os","mobile"]

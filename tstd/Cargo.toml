@@ -1,0 +1,8 @@
+[package]
+name = "tstd"
+version = "0.1.0"
+edition = "2024"
+description = "T-Lang standard library (core modules)"
+
+[dependencies]
+# (No external dependencies for now—add as needed later)
