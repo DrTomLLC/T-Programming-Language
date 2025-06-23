@@ -62,6 +62,7 @@ pub enum TokenType {
     Use,
     Where,
     While,
+    Underscore,
 
     // Punctuation
     LParen,      // (
