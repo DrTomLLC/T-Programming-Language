@@ -5,7 +5,7 @@
 use shared::{
     Program, Item, ItemKind, Stmt, StmtKind, Expr, ExprKind, Type, TypeKind,
     PrimitiveType, BinaryOp, UnaryOp, Literal, Pattern, PatternKind,
-    Result, TlError, stmt
+    Result, TlError, stmt::StructFields
 };
 use miette::SourceSpan;
 use std::collections::HashMap;
@@ -106,7 +106,7 @@ impl TypeChecker {
 
             ItemKind::Struct { name, fields, .. } => {
                 match fields {
-                    shared::stmt::StructFields::Named(field_list) => {
+                    StructFields::Named(field_list) => {
                         let field_map: HashMap<String, Type> = field_list.iter()
                             .map(|f| (f.name.clone(), f.ty.clone()))
                             .collect();
