@@ -48,7 +48,7 @@ extern {
         "mut" => TokenType::Mut,
         "pub" => TokenType::Pub,
         "ref" => TokenType::Ref,
-        
+
         // Primitive Types
         "i8" => TokenType::I8,
         "i16" => TokenType::I16,
