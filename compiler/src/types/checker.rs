@@ -5,7 +5,7 @@
 use shared::{
     Program, Item, ItemKind, Stmt, StmtKind, Expr, ExprKind, Type, TypeKind,
     PrimitiveType, BinaryOp, UnaryOp, Literal, Pattern, PatternKind,
-    Result, TlError
+    Result, TlError, stmt
 };
 use miette::SourceSpan;
 use std::collections::HashMap;
