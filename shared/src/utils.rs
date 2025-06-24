@@ -28,7 +28,7 @@ pub fn safe_unwrap_option_or<T>(option: Option<T>, default: T, context: &str) ->
 }
 
 /// Safe vector access that never panics.
-pub fn safe_get<T>(vec: &[T], index: usize, context: &str) -> Option<&T> {
+pub fn safe_get<'a, T>(vec: &'a [T], index: usize, context: &str) -> Option<&'a T> {
     match vec.get(index) {
         Some(item) => Some(item),
         None => {
