@@ -2,7 +2,6 @@
 //! T-Lang parser implementation.
 //! Converts token stream into AST using recursive descent parsing.
 
-use lalrpop_util::state_machine::Token;
 use shared::{
     Program, Item, Expression, Statement, Type, Block, Literal,
     BinaryOperator, UnaryOperator, FunctionDecl, Parameter,
@@ -12,17 +11,10 @@ use shared::{
     TypeKind, PrimitiveType, SafetyLevel, Result, TlError
 };
 use miette::SourceSpan;
-use crate::lexer::Keyword;
 
-// Import the lexer module from the parent module instead of declaring it locally
-use crate::lexer::{Token, TokenKind, Lexer, Keyword};
-mod expressions;
-mod declarations;
-mod statements;
-mod types;
-
-// Re-export lexer items
-pub use crate::lexer::{Token, TokenKind, Lexer};
+// Use existing lexer from the lexer module
+use crate::lexer::{tokenize};
+use shared::token::{Token, TokenType as TokenKind};
 
 /// Main parser struct that orchestrates the parsing process
 pub struct Parser {
@@ -36,8 +28,11 @@ pub struct Parser {
 impl Parser {
     /// Create a new parser for the given source code
     pub fn new(source: String) -> Self {
-        let mut lexer = Lexer::new(&source);
-        let tokens = lexer.tokenize();
+        // Use existing lexer
+        let tokens = match crate::lexer::tokenize(&source) {
+            Ok(tokens) => tokens,
+            Err(_) => Vec::new(), // Handle error appropriately
+        };
 
         Self {
             source,
@@ -73,19 +68,19 @@ impl Parser {
     /// Parse a top-level item (function, struct, enum, etc.)
     fn parse_item(&mut self) -> Result<Item> {
         match self.peek_kind() {
-            TokenKind::Keyword(Keyword::Fn) => {
+            TokenKind::Fn => {
                 Ok(Item::Function(self.parse_function()?))
             }
-            TokenKind::Keyword(Keyword::Struct) => {
+            TokenKind::Struct => {
                 Ok(Item::Struct(self.parse_struct()?))
             }
-            TokenKind::Keyword(Keyword::Enum) => {
+            TokenKind::Enum => {
                 Ok(Item::Enum(self.parse_enum()?))
             }
-            TokenKind::Keyword(Keyword::Use) => {
+            TokenKind::Use => {
                 Ok(Item::Use(self.parse_use()?))
             }
-            TokenKind::Keyword(Keyword::Const) => {
+            TokenKind::Const => {
                 Ok(Item::Const(self.parse_const()?))
             }
             _ => Err(self.error("Expected item declaration"))
