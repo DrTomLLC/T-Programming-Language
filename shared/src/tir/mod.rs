@@ -304,7 +304,7 @@ impl TirBuilder {
     }
 
     /// Build a complete TIR module from AST
-    pub fn build_module(&mut self, ast: &shared::ast::Program) -> errors::Result<TirModule> {
+    pub fn build_module(&mut self, ast: &crate::shared::ast::Program) -> errors::Result<TirModule> {
         let mut functions = Vec::new();
         let mut globals = Vec::new();
         let mut types = Vec::new();
@@ -313,15 +313,15 @@ impl TirBuilder {
 
         for item in &ast.items {
             match &item.kind {
-                shared::ast::ItemKind::Function { name, params, return_type, body, .. } => {
+                crate::shared::ast::ItemKind::Function { name, params, return_type, body, .. } => {
                     let function = self.build_function(name, params, return_type, body)?;
                     functions.push(function);
                 }
-                shared::ast::ItemKind::Const { name, ty, value } => {
+                crate::shared::ast::ItemKind::Const { name, ty, value } => {
                     let global = self.build_global(name, ty, Some(value), false)?;
                     globals.push(global);
                 }
-                shared::ast::ItemKind::Static { name, ty, value, mutable } => {
+                crate::shared::ast::ItemKind::Static { name, ty, value, mutable } => {
                     let global = self.build_global(name, ty, Some(value), *mutable)?;
                     globals.push(global);
                 }
@@ -344,9 +344,9 @@ impl TirBuilder {
     fn build_function(
         &mut self,
         name: &str,
-        params: &[shared::ast::FunctionParam],
-        return_type: &Option<shared::ast::Type>,
-        body: &shared::ast::Block,
+        params: &[crate::shared::ast::FunctionParam],
+        return_type: &Option<crate::shared::ast::Type>,
+        body: &crate::shared::ast::Block,
     ) -> errors::Result<TirFunction> {
         let function_id = self.fresh_function_id();
         self.current_function = Some(function_id);
@@ -385,7 +385,7 @@ impl TirBuilder {
         })
     }
 
-    fn build_block(&mut self, block: &shared::ast::Block) -> errors::Result<TirBlock> {
+    fn build_block(&mut self, block: &crate::shared::ast::Block) -> errors::Result<TirBlock> {
         let block_id = self.current_block.unwrap();
         let mut instructions = Vec::new();
 
