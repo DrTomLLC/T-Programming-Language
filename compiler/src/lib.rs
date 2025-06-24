@@ -359,7 +359,7 @@ impl Compiler {
             self.options.optimization_level,
         );
 
-        generator.generate(program)
+        generator.generate_code(program)
     }
 
     // Helper methods
