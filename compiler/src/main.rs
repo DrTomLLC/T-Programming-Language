@@ -1,106 +1,247 @@
-//! File: compiler/src/main.rs
-//! CLI entry point for the T-Lang compiler.
-//!
-//! Usage:
-//!     cargo run --bin compiler -- <input_file.t> [--out-dir <directory>]
-//!
-//! Reads `<input_file.t>`, compiles to `CompiledModule` (stub), then for each
-//! registered backend (via plugin_api), calls `backend.compile(...)` and writes
-//! the resulting IR blob to `<out-dir>/<backend_name>.bin`.
+// File: compiler/src/main.rs - COMPLETE IMPLEMENTATION
+// -----------------------------------------------------------------------------
 
-use anyhow::{bail, Context, Result};
-use plugin_api::{CompiledModule, list_backends};
-use shared::fs::read_to_string;
-use std::env;
+//! Complete T-Lang compiler CLI entry point.
+
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
 
-/// Configuration parsed from CLI arguments.
-struct Config {
-    input_path: PathBuf,
-    out_dir: PathBuf,
+use compiler::{compile_source, CompilerOptions, parse_source};
+use shared::tir::TirBuilder;
+
+#[derive(Parser)]
+#[command(name = "tlang-compiler", version, about = "T-Lang compiler")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
 }
 
-impl Config {
-    fn parse_args() -> Result<Self> {
-        let mut args = env::args().skip(1); // skip binary name
-
-        // Expect at least one argument: the input .t file.
-        let input = args.next().context("Expected path to <input_file.t>")?;
-        let mut out_dir = PathBuf::from("out"); // default “out” directory
-
-        // Optional: allow “--out-dir <dir>”
-        while let Some(arg) = args.next() {
-            match arg.as_str() {
-                "--out-dir" => {
-                    if let Some(dir) = args.next() {
-                        out_dir = PathBuf::from(dir);
-                    } else {
-                        bail!("--out-dir requires a directory path");
-                    }
-                }
-                unknown => {
-                    bail!("Unrecognized argument: {}", unknown);
-                }
-            }
-        }
-
-        Ok(Config {
-            input_path: PathBuf::from(input),
-            out_dir,
-        })
-    }
+#[derive(Subcommand)]
+enum Commands {
+    /// Compile T-Lang source files
+    Compile {
+        /// Input T-Lang source file
+        input: PathBuf,
+        /// Output directory
+        #[arg(short, long, default_value = "out")]
+        output: PathBuf,
+        /// Target backend
+        #[arg(short, long, default_value = "rust")]
+        backend: String,
+        /// Optimization level (0-3)
+        #[arg(short = 'O', long, default_value = "1")]
+        optimization: u8,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Check T-Lang source files without compilation
+    Check {
+        /// Input T-Lang source file
+        input: PathBuf,
+        /// Enable verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Show AST for debugging
+    Ast {
+        /// Input T-Lang source file
+        input: PathBuf,
+    },
+    /// Show TIR for debugging
+    Tir {
+        /// Input T-Lang source file
+        input: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
-    let cfg = Config::parse_args()?;
+    let cli = Cli::parse();
 
-    // 1. Read source
-    let source = read_to_string(&cfg.input_path)
-        .with_context(|| format!("Failed to read source file: {:?}", cfg.input_path))?;
+    match cli.command {
+        Commands::Compile { input, output, backend, optimization, verbose } => {
+            compile_file(&input, &output, &backend, optimization, verbose)
+        }
+        Commands::Check { input, verbose } => {
+            check_file(&input, verbose)
+        }
+        Commands::Ast { input } => {
+            show_ast(&input)
+        }
+        Commands::Tir { input } => {
+            show_tir(&input)
+        }
+    }
+}
 
-    // 2. Compile to bytecode (stub)
-    let module: CompiledModule = compiler::compile_source(&source)?;
-    let bc_len = module.bytecode.len();
-    println!(
-        "Compiled '{:?}' → {} bytes of bytecode.",
-        cfg.input_path, bc_len
-    );
-
-    // 3. Ensure output directory exists
-    if !cfg.out_dir.exists() {
-        fs::create_dir_all(&cfg.out_dir)
-            .with_context(|| format!("Failed to create output directory {:?}", cfg.out_dir))?;
+fn compile_file(
+    input: &PathBuf,
+    output: &PathBuf,
+    backend: &str,
+    optimization: u8,
+    verbose: bool,
+) -> Result<()> {
+    if verbose {
+        println!("Compiling {:?} with {} backend (O{})", input, backend, optimization);
     }
 
-    // 4. Dispatch to each registered backend
-    for backend in list_backends() {
-        let ir = backend
-            .compile(module.clone())
-            .unwrap_or_else(|e| {
-                panic!("Backend '{}' failed to compile: {}", backend.name(), e);
-            });
+    // Read source file
+    let source = fs::read_to_string(input)
+        .with_context(|| format!("Failed to read source file: {:?}", input))?;
 
-        // ir is `Box<dyn Any + Send + Sync>` –– assume each backend boxed a Vec<u8>.
-        let bytes: &Vec<u8> = ir
-            .downcast_ref::<Vec<u8>>()
-            .unwrap_or_else(|| panic!("Backend '{}' returned non-Vec<u8> IR", backend.name()));
+    // Configure compiler
+    let mut options = CompilerOptions::default();
+    options.target = backend.to_string();
+    options.optimization_level = optimization;
+    options.output_dir = output.to_string_lossy().to_string();
 
-        let out_path = cfg.out_dir.join(format!("{}.bin", backend.name()));
-        let mut file = fs::File::create(&out_path)
-            .with_context(|| format!("Failed to create backend output file {:?}", out_path))?;
-        file.write_all(bytes)
-            .with_context(|| format!("Failed to write IR to {:?}", out_path))?;
+    // Compile
+    let mut compiler = compiler::Compiler::new(source, options);
+    let result = compiler.compile();
 
-        println!(
-            "{} backend produced output ({} bytes) → {:?}",
-            backend.name(),
-            bytes.len(),
-            out_path,
-        );
+    if !result.success {
+        eprintln!("Compilation failed:");
+        for diagnostic in &result.diagnostics {
+            eprintln!("  {}: {}", diagnostic.level, diagnostic.message);
+        }
+        std::process::exit(1);
+    }
+
+    if verbose {
+        println!("Compilation successful!");
+        if let Some(code) = &result.code {
+            println!("Generated {} lines of {} code",
+                     code.source.lines().count(),
+                     code.target);
+        }
+    }
+
+    // Write output
+    if let Some(code) = result.code {
+        fs::create_dir_all(output)
+            .with_context(|| format!("Failed to create output directory: {:?}", output))?;
+
+        let output_file = output.join(format!("main.{}", get_extension(&code.target)));
+        fs::write(&output_file, &code.source)
+            .with_context(|| format!("Failed to write output file: {:?}", output_file))?;
+
+        if verbose {
+            println!("Output written to: {:?}", output_file);
+        }
+
+        // Write additional files
+        for (name, content) in &code.additional_files {
+            let file_path = output.join(name);
+            fs::write(&file_path, content)
+                .with_context(|| format!("Failed to write additional file: {:?}", file_path))?;
+        }
+
+        // Show build commands
+        if !code.build_commands.is_empty() {
+            println!("To build the generated code, run:");
+            for cmd in &code.build_commands {
+                println!("  {}", cmd);
+            }
+        }
     }
 
     Ok(())
 }
 
+fn check_file(input: &PathBuf, verbose: bool) -> Result<()> {
+    if verbose {
+        println!("Checking {:?}", input);
+    }
+
+    let source = fs::read_to_string(input)
+        .with_context(|| format!("Failed to read source file: {:?}", input))?;
+
+    // Parse and type check
+    match parse_source(&source) {
+        Ok(program) => {
+            if verbose {
+                println!("✓ Parsing successful");
+                println!("  {} items found", program.items.len());
+            }
+
+            // Type check
+            let mut program_copy = program.clone();
+            match compiler::check_program(&mut program_copy, source) {
+                Ok(()) => {
+                    if verbose {
+                        println!("✓ Type checking successful");
+                    }
+                    println!("✓ All checks passed");
+                }
+                Err(e) => {
+                    eprintln!("✗ Type checking failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("✗ Parsing failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn show_ast(input: &PathBuf) -> Result<()> {
+    let source = fs::read_to_string(input)
+        .with_context(|| format!("Failed to read source file: {:?}", input))?;
+
+    match parse_source(&source) {
+        Ok(program) => {
+            println!("AST for {:?}:", input);
+            println!("{:#?}", program);
+        }
+        Err(e) => {
+            eprintln!("Failed to parse: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn show_tir(input: &PathBuf) -> Result<()> {
+    let source = fs::read_to_string(input)
+        .with_context(|| format!("Failed to read source file: {:?}", input))?;
+
+    match parse_source(&source) {
+        Ok(program) => {
+            let mut builder = TirBuilder::new();
+            match builder.build_module(&program) {
+                Ok(tir_module) => {
+                    println!("TIR for {:?}:", input);
+                    println!("{:#?}", tir_module);
+                }
+                Err(e) => {
+                    eprintln!("Failed to generate TIR: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to parse: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn get_extension(target: &str) -> &str {
+    match target {
+        "rust" => "rs",
+        "c" => "c",
+        "llvm" => "ll",
+        "asm" => "s",
+        "wasm" => "wat",
+        _ => "txt",
+    }
+}
