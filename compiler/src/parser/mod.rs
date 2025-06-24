@@ -2,6 +2,8 @@
 //! T-Lang parser implementation.
 //! Converts token stream into AST using recursive descent parsing.
 
+mod entry;
+
 use shared::{
     Program, Item, Expression, Statement, Type, Block, Literal,
     BinaryOperator, UnaryOperator, FunctionDecl, Parameter,
