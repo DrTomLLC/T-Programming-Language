@@ -1,30 +1,27 @@
 // shared/src/ast/mod.rs
 //! Abstract Syntax Tree definitions for T-Lang.
-//!
-//! This module provides a complete, type-safe representation of T-Lang programs.
-//! Designed for safety-critical systems with explicit memory management,
-//! comprehensive type information, and detailed source location tracking.
+//! Complete AST system supporting all language features.
 
 use miette::SourceSpan;
 use serde::{Deserialize, Serialize};
 
-pub mod types;
 pub mod expr;
 pub mod stmt;
+pub mod types;
 
-// Re-export commonly used types for convenience
-pub use expr::{Expr, ExprKind, Literal, Pattern, PatternKind, BinaryOp, UnaryOp, Block};
-pub use stmt::{Stmt, StmtKind, Item, ItemKind, Visibility, Attribute};
-pub use types::{Type, TypeKind, PrimitiveType, SafetyLevel};
+// Re-export all the AST node types
+pub use expr::*;
+pub use stmt::*;
+pub use types::*;
 
-/// The root of a T-Lang program: a collection of items (modules, functions, types, etc.)
+/// Root program node containing all top-level items.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Program {
     pub items: Vec<Item>,
     pub span: SourceSpan,
 }
 
-/// A module in the T-Lang module system.
+/// A module containing items.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Module {
     pub name: String,
@@ -32,56 +29,54 @@ pub struct Module {
     pub span: SourceSpan,
 }
 
-/// Source span for tracking locations in the original source code.
-/// This is essential for error reporting and IDE support.
+/// Source span information for error reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Span {
     pub start: usize,
-    pub end: usize,
+    pub len: usize,
 }
 
 impl Span {
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
+    pub fn new(start: usize, len: usize) -> Self {
+        Self { start, len }
     }
 
-    pub fn len(&self) -> usize {
-        self.end.saturating_sub(self.start)
+    pub fn dummy() -> Self {
+        Self { start: 0, len: 0 }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.start >= self.end
+    pub fn end(&self) -> usize {
+        self.start + self.len
     }
 
-    pub fn merge(self, other: Self) -> Self {
-        Self {
-            start: self.start.min(other.start),
-            end: self.end.max(other.end),
-        }
+    pub fn contains(&self, offset: usize) -> bool {
+        offset >= self.start && offset < self.end()
     }
-}
 
-impl From<Span> for SourceSpan {
-    fn from(span: Span) -> Self {
-        SourceSpan::new(span.start.into(), span.len())
+    pub fn overlaps(&self, other: &Span) -> bool {
+        self.start < other.end() && other.start < self.end()
+    }
+
+    pub fn merge(&self, other: &Span) -> Span {
+        let start = self.start.min(other.start);
+        let end = self.end().max(other.end());
+        Span::new(start, end - start)
     }
 }
 
 impl From<SourceSpan> for Span {
     fn from(span: SourceSpan) -> Self {
-        let start = span.offset();
-        let len = span.len();
-        Self::new(start, start + len)
+        Self::new(span.offset(), span.len())
     }
 }
 
-impl Default for Span {
-    fn default() -> Self {
-        Self::new(0, 0)
+impl From<Span> for SourceSpan {
+    fn from(span: Span) -> Self {
+        SourceSpan::new(span.start.into(), span.len)
     }
 }
 
-/// Node identifier for tracking AST nodes during compilation.
+/// Unique identifier for AST nodes.
 /// Used for type inference, dependency analysis, and incremental compilation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct NodeId(pub u32);
@@ -132,6 +127,274 @@ impl Default for NodeMetadata {
             phase: CompilationPhase::default(),
             source_file: None,
         }
+    }
+}
+
+/// Top-level items (functions, types, modules, etc.)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Item {
+    pub kind: ItemKind,
+    pub attrs: Vec<Attribute>,
+    pub vis: Visibility,
+    pub span: SourceSpan,
+}
+
+/// All possible item kinds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ItemKind {
+    /// Function definition: fn name(params) -> return_type { body }
+    Function {
+        name: String,
+        generics: Vec<GenericParam>,
+        params: Vec<FnParam>,
+        return_type: Option<Type>,
+        body: Expr,
+        safety: SafetyLevel,
+    },
+
+    /// Struct definition: struct Name { fields }
+    Struct {
+        name: String,
+        generics: Vec<GenericParam>,
+        fields: StructFields,
+    },
+
+    /// Enum definition: enum Name { variants }
+    Enum {
+        name: String,
+        generics: Vec<GenericParam>,
+        variants: Vec<EnumVariant>,
+    },
+
+    /// Type alias: type Name = Type;
+    TypeAlias {
+        name: String,
+        generics: Vec<GenericParam>,
+        ty: Type,
+    },
+
+    /// Trait definition: trait Name { items }
+    Trait {
+        name: String,
+        generics: Vec<GenericParam>,
+        supertraits: Vec<Type>,
+        items: Vec<TraitItem>,
+    },
+
+    /// Implementation: impl [Type for] Type { items }
+    Impl {
+        generics: Vec<GenericParam>,
+        trait_ref: Option<Type>,
+        self_ty: Type,
+        items: Vec<ImplItem>,
+    },
+
+    /// Module: mod name { items }
+    Module {
+        name: String,
+        items: Vec<Item>,
+    },
+
+    /// Use declaration: use path;
+    Use {
+        path: Vec<String>,
+        alias: Option<String>,
+        glob: bool,
+    },
+
+    /// Constant: const NAME: Type = expr;
+    Const {
+        name: String,
+        ty: Type,
+        value: Expr,
+    },
+
+    /// Static variable: static NAME: Type = expr;
+    Static {
+        name: String,
+        ty: Type,
+        value: Expr,
+        mutable: bool,
+    },
+
+    /// External block: extern "C" { items }
+    Extern {
+        abi: Option<String>,
+        items: Vec<ExternItem>,
+    },
+
+    /// Macro definition: macro_rules! name { rules }
+    Macro {
+        name: String,
+        rules: Vec<MacroRule>,
+    },
+}
+
+/// Struct field definitions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum StructFields {
+    Named(Vec<StructField>),     // struct S { x: i32, y: i32 }
+    Unnamed(Vec<Type>),          // struct S(i32, i32);
+    Unit,                        // struct S;
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StructField {
+    pub name: String,
+    pub ty: Type,
+    pub vis: Visibility,
+    pub attrs: Vec<Attribute>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EnumVariant {
+    pub name: String,
+    pub fields: StructFields,
+    pub discriminant: Option<Expr>,
+    pub attrs: Vec<Attribute>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FnParam {
+    pub pattern: Pattern,
+    pub ty: Type,
+    pub default: Option<Expr>,
+    pub attrs: Vec<Attribute>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GenericParam {
+    pub name: String,
+    pub bounds: Vec<Type>,
+    pub default: Option<Type>,
+    pub span: SourceSpan,
+}
+
+/// Trait items.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum TraitItem {
+    Function {
+        name: String,
+        generics: Vec<GenericParam>,
+        params: Vec<FnParam>,
+        return_type: Option<Type>,
+        body: Option<Expr>,
+        safety: SafetyLevel,
+    },
+    Type {
+        name: String,
+        bounds: Vec<Type>,
+        default: Option<Type>,
+    },
+    Const {
+        name: String,
+        ty: Type,
+        value: Option<Expr>,
+    },
+}
+
+/// Implementation items.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImplItem {
+    Function {
+        name: String,
+        generics: Vec<GenericParam>,
+        params: Vec<FnParam>,
+        return_type: Option<Type>,
+        body: Expr,
+        safety: SafetyLevel,
+        vis: Visibility,
+    },
+    Type {
+        name: String,
+        ty: Type,
+        vis: Visibility,
+    },
+    Const {
+        name: String,
+        ty: Type,
+        value: Expr,
+        vis: Visibility,
+    },
+}
+
+/// External items.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ExternItem {
+    Function {
+        name: String,
+        params: Vec<FnParam>,
+        return_type: Option<Type>,
+        variadic: bool,
+    },
+    Static {
+        name: String,
+        ty: Type,
+        mutable: bool,
+    },
+}
+
+/// Visibility levels.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Visibility {
+    Public,                      // pub
+    PublicCrate,                 // pub(crate)
+    PublicSuper,                 // pub(super)
+    PublicIn(Vec<String>),       // pub(in path::to::module)
+    Private,                     // (default)
+}
+
+/// Attributes like #[derive(Debug)], #[inline].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Attribute {
+    pub path: Vec<String>,
+    pub args: Vec<MacroArg>,
+    pub span: SourceSpan,
+}
+
+/// Macro arguments.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum MacroArg {
+    Token(crate::token::Token),
+    Group {
+        delimiter: MacroDelimiter,
+        tokens: Vec<MacroArg>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum MacroDelimiter {
+    Parentheses,
+    Brackets,
+    Braces,
+}
+
+/// Macro rules for macro_rules! definitions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MacroRule {
+    pub pattern: Vec<MacroArg>,
+    pub body: Vec<MacroArg>,
+}
+
+/// Safety levels for functions and operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SafetyLevel {
+    Safe,
+    Unsafe,
+}
+
+impl Default for SafetyLevel {
+    fn default() -> Self {
+        Self::Safe
+    }
+}
+
+impl Default for Visibility {
+    fn default() -> Self {
+        Self::Private
     }
 }
 
@@ -224,4 +487,145 @@ impl HasSpan for Pattern {
     fn span(&self) -> SourceSpan {
         self.span
     }
+}
+
+/// Helper functions for creating AST nodes.
+impl Item {
+    pub fn function(
+        name: String,
+        params: Vec<FnParam>,
+        return_type: Option<Type>,
+        body: Expr,
+        span: SourceSpan,
+    ) -> Self {
+        Self {
+            kind: ItemKind::Function {
+                name,
+                generics: Vec::new(),
+                params,
+                return_type,
+                body,
+                safety: SafetyLevel::Safe,
+            },
+            attrs: Vec::new(),
+            vis: Visibility::Private,
+            span,
+        }
+    }
+
+    pub fn struct_def(name: String, fields: Vec<StructField>, span: SourceSpan) -> Self {
+        Self {
+            kind: ItemKind::Struct {
+                name,
+                generics: Vec::new(),
+                fields: StructFields::Named(fields),
+            },
+            attrs: Vec::new(),
+            vis: Visibility::Private,
+            span,
+        }
+    }
+
+    pub fn use_item(path: Vec<String>, span: SourceSpan) -> Self {
+        Self {
+            kind: ItemKind::Use {
+                path,
+                alias: None,
+                glob: false,
+            },
+            attrs: Vec::new(),
+            vis: Visibility::Private,
+            span,
+        }
+    }
+}
+
+impl StructField {
+    pub fn new(name: String, ty: Type, span: SourceSpan) -> Self {
+        Self {
+            name,
+            ty,
+            vis: Visibility::Private,
+            attrs: Vec::new(),
+            span,
+        }
+    }
+}
+
+impl FnParam {
+    pub fn new(name: String, ty: Type, span: SourceSpan) -> Self {
+        Self {
+            pattern: Pattern::identifier(name, span),
+            ty,
+            default: None,
+            attrs: Vec::new(),
+            span,
+        }
+    }
+}
+
+impl Attribute {
+    pub fn new(path: Vec<String>, span: SourceSpan) -> Self {
+        Self {
+            path,
+            args: Vec::new(),
+            span,
+        }
+    }
+
+    pub fn simple(name: &str, span: SourceSpan) -> Self {
+        Self::new(vec![name.to_string()], span)
+    }
+}
+
+/// AST visitor pattern for traversing the tree.
+pub trait Visitor<T = ()> {
+    fn visit_program(&mut self, program: &Program) -> T {
+        walk_program(self, program)
+    }
+
+    fn visit_item(&mut self, item: &Item) -> T {
+        walk_item(self, item)
+    }
+
+    fn visit_stmt(&mut self, stmt: &Stmt) -> T {
+        walk_stmt(self, stmt)
+    }
+
+    fn visit_expr(&mut self, expr: &Expr) -> T {
+        walk_expr(self, expr)
+    }
+
+    fn visit_type(&mut self, ty: &Type) -> T {
+        walk_type(self, ty)
+    }
+
+    fn visit_pattern(&mut self, pattern: &Pattern) -> T {
+        walk_pattern(self, pattern)
+    }
+}
+
+/// Default walking implementations.
+pub fn walk_program<V: Visitor<T>, T>(_visitor: &mut V, _program: &Program) -> T {
+    todo!("Implement AST walking")
+}
+
+pub fn walk_item<V: Visitor<T>, T>(_visitor: &mut V, _item: &Item) -> T {
+    todo!("Implement AST walking")
+}
+
+pub fn walk_stmt<V: Visitor<T>, T>(_visitor: &mut V, _stmt: &Stmt) -> T {
+    todo!("Implement AST walking")
+}
+
+pub fn walk_expr<V: Visitor<T>, T>(_visitor: &mut V, _expr: &Expr) -> T {
+    todo!("Implement AST walking")
+}
+
+pub fn walk_type<V: Visitor<T>, T>(_visitor: &mut V, _ty: &Type) -> T {
+    todo!("Implement AST walking")
+}
+
+pub fn walk_pattern<V: Visitor<T>, T>(_visitor: &mut V, _pattern: &Pattern) -> T {
+    todo!("Implement AST walking")
 }
