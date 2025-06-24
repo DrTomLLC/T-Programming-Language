@@ -2,6 +2,7 @@
 //! T-Lang parser implementation.
 //! Converts token stream into AST using recursive descent parsing.
 
+use lalrpop_util::state_machine::Token;
 use shared::{
     Program, Item, Expression, Statement, Type, Block, Literal,
     BinaryOperator, UnaryOperator, FunctionDecl, Parameter,
