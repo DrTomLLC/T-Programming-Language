@@ -1426,6 +1426,7 @@ dependencies = [
  "errors",
  "miette",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 
