@@ -1,26 +1,85 @@
-//! Basic I/O functions for T-Lang.
-//! You can replace the underlying implementation once the runtime is ready.
+// File: tstd/src/io.rs - COMPLETE REWRITE
+// -----------------------------------------------------------------------------
 
-/// Print without a trailing newline.
-pub fn print(s: &str) {
-    // TODO: Hook into T-Lang’s runtime printing.
-    // For now, compile into Rust’s stdout for development.
-    print!("{}", s);
+//! Complete I/O implementation for T-Lang standard library.
+
+use std::io::{self, Write, BufRead, BufReader};
+use std::fs::File;
+use std::path::Path;
+
+/// Print a value without a trailing newline
+pub fn print<T: std::fmt::Display>(value: T) -> Result<(), io::Error> {
+    print!("{}", value);
+    io::stdout().flush()
 }
 
-/// Print with a trailing newline.
-pub fn println(s: &str) {
-    print(&format!("{}\n", s));
+/// Print a value with a trailing newline
+pub fn println<T: std::fmt::Display>(value: T) -> Result<(), io::Error> {
+    println!("{}", value);
+    Ok(())
 }
 
-/// Read a line of input from stdin (blocking).
-pub fn read_line() -> String {
-    use std::io::{self, Write};
+/// Read a line from standard input
+pub fn read_line() -> Result<String, io::Error> {
+    let stdin = io::stdin();
+    let mut reader = BufReader::new(stdin.lock());
     let mut buffer = String::new();
-    // Flush stdout so prompt appears immediately.
-    io::stdout().flush().ok();
-    io::stdin()
-        .read_line(&mut buffer)
-        .expect("Failed to read line from stdin");
-    buffer.trim_end().to_string()
+
+    io::stdout().flush()?;
+    reader.read_line(&mut buffer)?;
+
+    // Remove trailing newline
+    if buffer.ends_with('\n') {
+        buffer.pop();
+        if buffer.ends_with('\r') {
+            buffer.pop();
+        }
+    }
+
+    Ok(buffer)
+}
+
+/// Read all input until EOF
+pub fn read_to_string() -> Result<String, io::Error> {
+    let stdin = io::stdin();
+    let mut reader = BufReader::new(stdin.lock());
+    let mut buffer = String::new();
+
+    reader.read_to_string(&mut buffer)?;
+    Ok(buffer)
+}
+
+/// Read an entire file to a string
+pub fn read_file<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
+    std::fs::read_to_string(path)
+}
+
+/// Write a string to a file
+pub fn write_file<P: AsRef<Path>>(path: P, contents: &str) -> Result<(), io::Error> {
+    std::fs::write(path, contents)
+}
+
+/// Append a string to a file
+pub fn append_file<P: AsRef<Path>>(path: P, contents: &str) -> Result<(), io::Error> {
+    use std::fs::OpenOptions;
+
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+
+    file.write_all(contents.as_bytes())?;
+    Ok(())
+}
+
+/// Print to standard error
+pub fn eprint<T: std::fmt::Display>(value: T) -> Result<(), io::Error> {
+    eprint!("{}", value);
+    io::stderr().flush()
+}
+
+/// Print to standard error with newline
+pub fn eprintln<T: std::fmt::Display>(value: T) -> Result<(), io::Error> {
+    eprintln!("{}", value);
+    Ok(())
 }

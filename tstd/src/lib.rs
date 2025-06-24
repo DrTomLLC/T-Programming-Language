@@ -1,4 +1,4 @@
-// File: tstd/src/lib.rs - COMPLETE REWRITE
+// File: tstd/src/lib.rs
 // -----------------------------------------------------------------------------
 
 //! Complete T-Lang standard library implementation.
