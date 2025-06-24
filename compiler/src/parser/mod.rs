@@ -3,6 +3,7 @@
 //! Converts token stream into AST using recursive descent parsing.
 
 mod entry;
+mod tests;
 
 use shared::{
     Program, Item, Expression, Statement, Type, Block, Literal,
