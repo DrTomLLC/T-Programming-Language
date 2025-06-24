@@ -433,6 +433,8 @@ impl TirBuilder {
         }
     }
 
+use shared;
+
     fn build_expression(&mut self, expr: &shared::ast::Expr) -> errors::Result<ValueId> {
         match &expr.kind {
             shared::ast::ExprKind::Literal(lit) => {
