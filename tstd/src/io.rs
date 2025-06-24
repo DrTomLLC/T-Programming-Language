@@ -3,7 +3,7 @@
 
 //! Complete I/O implementation for T-Lang standard library.
 
-use std::io::{self, Write, BufRead, BufReader};
+use std::io::{self, Write, BufRead, BufReader, Read};
 use std::fs::File;
 use std::path::Path;
 
