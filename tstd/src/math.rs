@@ -3,7 +3,7 @@
 
 //! Complete mathematical functions for T-Lang standard library.
 
-use std::f64::consts;
+// No need to import std::f64::consts at the top level since we reference it directly in our consts module
 
 /// Absolute value of a number
 pub fn abs<T>(x: T) -> T
