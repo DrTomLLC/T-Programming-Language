@@ -1173,6 +1173,7 @@ dependencies = [
  "errors",
  "once_cell",
  "parking_lot",
+ "serde",
  "shared",
  "thiserror",
 ]
