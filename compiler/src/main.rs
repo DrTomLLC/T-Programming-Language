@@ -4,21 +4,19 @@
 //! Complete T-Lang compiler CLI entry point.
 
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+#[allow(unused_imports)]
 use std::path::PathBuf;
 use std::fs;
 
 use compiler::{compile_source, CompilerOptions, parse_source};
 use shared::tir::TirBuilder;
 
-#[derive(Parser)]
-#[command(name = "tlang-compiler", version, about = "T-Lang compiler")]
 struct Cli {
-    #[command(subcommand)]
     command: Commands,
 }
 
-#[derive(Subcommand)]
+enum Commands {
+}
 enum Commands {
     /// Compile T-Lang source files
     Compile {
@@ -58,7 +56,16 @@ enum Commands {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    // TODO: Replace with proper CLI parsing
+    let cli = Cli {
+        command: Commands::Compile {
+            input: PathBuf::from("input.tlang"),
+            output: PathBuf::from("out"),
+            backend: "rust".to_string(),
+            optimization: 1,
+            verbose: false
+        }
+    };
 
     match cli.command {
         Commands::Compile { input, output, backend, optimization, verbose } => {
