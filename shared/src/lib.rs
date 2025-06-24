@@ -2,6 +2,8 @@
 //! Core shared types for the T-Lang compiler pipeline.
 //! These types are used across all compiler phases.
 
+mod tokenizer;
+
 use miette::SourceSpan;
 use std::collections::HashMap;
 
