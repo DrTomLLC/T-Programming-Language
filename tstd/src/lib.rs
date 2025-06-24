@@ -1,22 +1,33 @@
-//! T-Lang standard library: exposes `tlang_print` and `tlang_println` for backends.
+// File: tstd/src/lib.rs - COMPLETE REWRITE
+// -----------------------------------------------------------------------------
 
-/// Print a UTF-8 string slice without a trailing newline.
-/// Backends call this via the FFI or link directly.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn tlang_print(ptr: *const u8, len: usize) {
-    // Safety: assume backends pass a valid UTF-8 pointer+length
-    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
-    if let Ok(s) = std::str::from_utf8(bytes) {
-        print!("{}", s);
-    }
+//! Complete T-Lang standard library implementation.
+
+pub mod io;
+pub mod math;
+pub mod string;
+pub mod collections;
+pub mod time;
+pub mod fs;
+pub mod process;
+
+// Re-export commonly used items
+pub use io::{print, println, read_line};
+pub use math::{abs, sqrt, sin, cos, tan, ln, exp, pow};
+
+/// The prelude module contains the most commonly used items
+/// that are automatically imported into every T-Lang program.
+pub mod prelude {
+    pub use crate::io::{print, println};
+    pub use crate::math::{abs, sqrt};
+    pub use super::{Result, Option, Some, None, Ok, Err};
 }
 
-/// Print a UTF-8 string slice with a trailing newline.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn tlang_println(ptr: *const u8, len: usize) {
-    // Safety: We trust that the caller provides a valid UTF-8 pointer and length
-    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
-    if let Ok(s) = std::str::from_utf8(bytes) {
-        println!("{}", s);
-    }
-}
+/// Result type for operations that can fail
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+/// Option type for values that may be absent
+pub use std::option::Option::{self, Some, None};
+
+/// Result variants
+pub use std::result::Result::{Ok, Err};
