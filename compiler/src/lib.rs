@@ -14,6 +14,7 @@ pub mod types;
 pub mod safety;
 pub mod codegen;
 pub mod backends;
+mod codegen;
 
 // Re-export key types for convenience
 pub use parser::{Parser, parse_source, parse_expression};
