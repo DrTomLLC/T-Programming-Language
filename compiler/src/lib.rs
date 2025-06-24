@@ -10,7 +10,22 @@ use plugin_api::CompiledModule;
 pub mod parser;
 pub mod types;
 pub mod safety;
-pub mod codegen;
+// Create this module
+mod codegen {
+    /// Code generator for T-Lang
+    pub struct CodeGenerator;
+
+    /// Output of the code generation phase
+    #[derive(Debug)]
+    pub struct GeneratedCode;
+
+    impl CodeGenerator {
+        /// Create a new code generator
+        pub fn new() -> Self {
+            Self
+        }
+    }
+}
 pub mod backends;
 pub mod lexer;
 
