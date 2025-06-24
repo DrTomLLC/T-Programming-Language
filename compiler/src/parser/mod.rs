@@ -11,14 +11,17 @@ use shared::{
     TypeKind, PrimitiveType, SafetyLevel, Result, TlError
 };
 use miette::SourceSpan;
+use crate::lexer::Keyword;
 
-mod lexer;
+// Import the lexer module from the parent module instead of declaring it locally
+use crate::lexer::{Token, TokenKind, Lexer, Keyword};
 mod expressions;
 mod declarations;
 mod statements;
 mod types;
 
-pub use lexer::{Token, TokenKind, Lexer};
+// Re-export lexer items
+pub use crate::lexer::{Token, TokenKind, Lexer};
 
 /// Main parser struct that orchestrates the parsing process
 pub struct Parser {
