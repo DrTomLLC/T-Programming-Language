@@ -12,6 +12,7 @@
 pub mod ast;
 pub mod token;
 pub mod tokenizer;
+mod utils;
 
 // Re-export commonly used types at the crate root
 pub use ast::{
