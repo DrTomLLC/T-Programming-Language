@@ -1,98 +1,119 @@
 // shared/src/ast/expr.rs
 //! Expression AST nodes for T-Lang.
-//! Comprehensive expression system supporting all programming paradigms.
 
-use super::types::{Type, SafetyLevel};
 use miette::SourceSpan;
 use serde::{Deserialize, Serialize};
 
-/// A complete expression with type information and source location.
+/// An expression in T-Lang.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Expr {
     pub kind: ExprKind,
-    pub ty: Option<Type>,
     pub span: SourceSpan,
 }
 
 /// All possible expression kinds in T-Lang.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExprKind {
-    /// Literals: 42, "hello", true, 3.14
+    /// Literal values: 42, "hello", true, etc.
     Literal(Literal),
 
-    /// Variable reference: x, self, super
-    Variable {
-        path: Vec<String>,
+    /// Identifier: variable_name
+    Identifier(String),
+
+    /// Binary operation: lhs + rhs
+    Binary {
+        lhs: Box<Expr>,
+        op: BinaryOp,
+        rhs: Box<Expr>,
     },
 
-    /// Function call: f(a, b, c)
+    /// Unary operation: !expr, -expr
+    Unary {
+        op: UnaryOp,
+        operand: Box<Expr>,
+    },
+
+    /// Function call: func(args)
     Call {
-        callee: Box<Expr>,
+        func: Box<Expr>,
         args: Vec<Expr>,
-        safety: SafetyLevel,
     },
 
-    /// Method call: obj.method(args)
+    /// Field access: expr.field
+    FieldAccess {
+        object: Box<Expr>,
+        field: String,
+    },
+
+    /// Method call: expr.method(args)
     MethodCall {
         receiver: Box<Expr>,
         method: String,
         args: Vec<Expr>,
     },
 
-    /// Field access: obj.field
-    FieldAccess {
-        object: Box<Expr>,
-        field: String,
-    },
-
-    /// Index access: arr[i]
+    /// Index access: expr[index]
     Index {
         object: Box<Expr>,
         index: Box<Expr>,
     },
 
-    /// Range: 0..10, 0..=10, ..10, 0.., ..
-    Range {
+    /// Slice: expr[start..end]
+    Slice {
+        object: Box<Expr>,
         start: Option<Box<Expr>>,
         end: Option<Box<Expr>>,
         inclusive: bool,
     },
 
-    /// Binary operations: +, -, *, /, ==, !=, <, >, etc.
-    Binary {
-        left: Box<Expr>,
-        op: BinaryOp,
-        right: Box<Expr>,
+    /// Tuple: (expr1, expr2, ...)
+    Tuple(Vec<Expr>),
+
+    /// Array: [expr1, expr2, ...] or [expr; count]
+    Array {
+        elements: Vec<Expr>,
+        repeat: Option<Box<Expr>>, // For [value; count] syntax
     },
 
-    /// Unary operations: -, !, &, *, ~
-    Unary {
-        op: UnaryOp,
-        expr: Box<Expr>,
+    /// Struct literal: StructName { field1: expr1, .. }
+    Struct {
+        path: Vec<String>,
+        fields: Vec<StructFieldExpr>,
+        base: Option<Box<Expr>>, // For update syntax
     },
 
-    /// Assignment: x = value, x += value
-    Assign {
+    /// Assignment: lvalue = rvalue
+    Assignment {
         target: Box<Expr>,
-        op: Option<BinaryOp>, // None for =, Some for +=, -=, etc.
         value: Box<Expr>,
+        op: Option<BinaryOp>, // For compound assignment +=, -=, etc.
     },
 
-    /// Conditional: if cond { then } else { else }
+    /// Block expression: { stmts; expr }
+    Block {
+        stmts: Vec<super::Stmt>,
+        expr: Option<Box<Expr>>,
+    },
+
+    /// If expression: if cond { then } else { else }
     If {
         condition: Box<Expr>,
         then_branch: Box<Expr>,
         else_branch: Option<Box<Expr>>,
     },
 
-    /// Match expression: match expr { patterns }
-    Match {
-        expr: Box<Expr>,
-        arms: Vec<MatchArm>,
+    /// While loop: while cond { body }
+    While {
+        condition: Box<Expr>,
+        body: Box<Expr>,
     },
 
-    /// Block expression: { stmt1; stmt2; expr }
-    Block(Block),
+    /// For loop: for pattern in iterable { body }
+    For {
+        pattern: Pattern,
+        iterable: Box<Expr>,
+        body: Box<Expr>,
+    },
 
     /// Loop: loop { body }
     Loop {
@@ -100,86 +121,34 @@ pub enum ExprKind {
         label: Option<String>,
     },
 
-    /// While loop: while cond { body }
-    While {
-        condition: Box<Expr>,
-        body: Box<Expr>,
-        label: Option<String>,
-    },
-
-    /// For loop: for pat in iter { body }
-    For {
-        pattern: Pattern,
-        iterable: Box<Expr>,
-        body: Box<Expr>,
-        label: Option<String>,
-    },
-
-    /// Break: break, break 'label, break expr
+    /// Break: break [label] [value]
     Break {
         label: Option<String>,
         value: Option<Box<Expr>>,
     },
 
-    /// Continue: continue, continue 'label
+    /// Continue: continue [label]
     Continue {
         label: Option<String>,
     },
 
-    /// Return: return, return expr
+    /// Return: return [expr]
     Return {
         value: Option<Box<Expr>>,
     },
 
-    /// Tuple: (a, b, c)
-    Tuple(Vec<Expr>),
-
-    /// Array: [a, b, c] or [expr; count]
-    Array {
-        elements: Vec<Expr>,
-        repeat: Option<Box<Expr>>, // for [expr; count]
+    /// Match expression: match expr { arms }
+    Match {
+        expr: Box<Expr>,
+        arms: Vec<MatchArm>,
     },
 
-    /// Struct literal: Point { x: 1, y: 2 }
-    Struct {
-        path: Vec<String>,
-        fields: Vec<FieldInit>,
-        base: Option<Box<Expr>>, // for ..base
-    },
-
-    /// Closure: |a, b| a + b, move |x| x
+    /// Closure: |params| body
     Closure {
-        capture: CaptureMode,
         params: Vec<ClosureParam>,
-        return_type: Option<Type>,
         body: Box<Expr>,
-    },
-
-    /// Async block: async { ... }, async move { ... }
-    Async {
-        capture: CaptureMode,
-        body: Box<Expr>,
-    },
-
-    /// Await: expr.await
-    Await {
-        expr: Box<Expr>,
-    },
-
-    /// Try: expr?
-    Try {
-        expr: Box<Expr>,
-    },
-
-    /// Unsafe block: unsafe { ... }
-    Unsafe {
-        body: Box<Expr>,
-    },
-
-    /// Type cast: expr as Type
-    Cast {
-        expr: Box<Expr>,
-        target_type: Type,
+        is_async: bool,
+        is_move: bool,
     },
 
     /// Reference: &expr, &mut expr
@@ -192,48 +161,104 @@ pub enum ExprKind {
     Dereference {
         expr: Box<Expr>,
     },
+
+    /// Type cast: expr as Type
+    Cast {
+        expr: Box<Expr>,
+        ty: super::Type,
+    },
+
+    /// Try operator: expr?
+    Try {
+        expr: Box<Expr>,
+    },
+
+    /// Await: expr.await
+    Await {
+        expr: Box<Expr>,
+    },
+
+    /// Async block: async { body }
+    Async {
+        body: Box<Expr>,
+    },
+
+    /// Unsafe block: unsafe { body }
+    Unsafe {
+        body: Box<Expr>,
+    },
+
+    /// Parenthesized expression: (expr)
+    Grouping(Box<Expr>),
+
+    /// Range: start..end, start..=end, ..end, start.., ..
+    Range {
+        start: Option<Box<Expr>>,
+        end: Option<Box<Expr>>,
+        inclusive: bool,
+    },
+
+    /// Macro invocation: macro_name!(args)
+    Macro {
+        path: Vec<String>,
+        args: Vec<super::MacroArg>,
+    },
 }
 
 /// Literal values.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Literal {
-    Integer(i128),
+    Bool(bool),
+    Integer(i64),
     Float(f64),
     String(String),
     Char(char),
-    Bool(bool),
     Unit,
 }
 
 /// Binary operators.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BinaryOp {
     // Arithmetic
-    Add, Sub, Mul, Div, Mod, Pow,
-
-    // Comparison
-    Eq, Ne, Lt, Le, Gt, Ge,
-
-    // Logical
-    And, Or,
+    Add,    // +
+    Sub,    // -
+    Mul,    // *
+    Div,    // /
+    Mod,    // %
 
     // Bitwise
-    BitAnd, BitOr, BitXor, Shl, Shr,
+    And,    // &
+    Or,     // |
+    Xor,    // ^
+    Shl,    // <<
+    Shr,    // >>
+
+    // Comparison
+    Eq,     // ==
+    Ne,     // !=
+    Lt,     // <
+    Le,     // <=
+    Gt,     // >
+    Ge,     // >=
+
+    // Logical
+    LogicalAnd, // &&
+    LogicalOr,  // ||
 }
 
 /// Unary operators.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UnaryOp {
-    Neg,    // -expr
-    Not,    // !expr
-    BitNot, // ~expr
+    Not,    // !
+    Neg,    // -
+    Plus,   // +
 }
 
-/// A block of statements and expressions.
+/// Struct field in a struct literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Block {
-    pub statements: Vec<super::stmt::Stmt>,
-    pub expr: Option<Box<Expr>>,
+pub struct StructFieldExpr {
+    pub name: String,
+    pub value: Expr,
     pub span: SourceSpan,
 }
 
@@ -246,25 +271,43 @@ pub struct Pattern {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternKind {
-    Wild,                          // _
-    Ident(String),                 // x
-    Literal(Literal),              // 42, "hello"
-    Tuple(Vec<Pattern>),           // (a, b, c)
-    Struct { path: Vec<String>, fields: Vec<FieldPattern> }, // Point { x, y }
-    Enum { path: Vec<String>, variant: String, fields: Vec<Pattern> }, // Some(x)
-    Slice(Vec<Pattern>),           // [a, b, c]
-    Range { start: Box<Expr>, end: Box<Expr>, inclusive: bool }, // 0..10
-    Or(Vec<Pattern>),              // a | b | c
-    Guard { pattern: Box<Pattern>, condition: Box<Expr> }, // x if x > 0
+    /// Wildcard pattern: _
+    Wildcard,
+
+    /// Identifier pattern: name
+    Identifier {
+        name: String,
+        mutable: bool,
+    },
+
+    /// Literal pattern: 42, "hello", true
+    Literal(Literal),
+
+    /// Tuple pattern: (pat1, pat2, ...)
+    Tuple(Vec<Pattern>),
+
+    /// Struct pattern: StructName { field1: pat1, .. }
+    Struct {
+        path: Vec<String>,
+        fields: Vec<(String, Pattern)>,
+        rest: bool, // For .. in pattern
+    },
+
+    /// Reference pattern: &pat, &mut pat
+    Ref(Box<Pattern>),
+
+    /// Range pattern: 1..=10
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+        inclusive: bool,
+    },
+
+    /// Or pattern: pat1 | pat2
+    Or(Vec<Pattern>),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FieldPattern {
-    pub name: String,
-    pub pattern: Option<Pattern>, // None for shorthand
-    pub span: SourceSpan,
-}
-
+/// Match arm in a match expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchArm {
     pub pattern: Pattern,
@@ -273,33 +316,270 @@ pub struct MatchArm {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FieldInit {
-    pub name: String,
-    pub value: Option<Expr>, // None for shorthand
-    pub span: SourceSpan,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum CaptureMode {
-    Move,
-    Ref,
-}
-
+/// Closure parameter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClosureParam {
     pub pattern: Pattern,
-    pub ty: Option<Type>,
+    pub ty: Option<super::Type>,
     pub span: SourceSpan,
 }
 
+/// Helper constructors for expressions.
 impl Expr {
-    pub fn new(kind: ExprKind, span: SourceSpan) -> Self {
-        Self { kind, ty: None, span }
+    pub fn literal(lit: Literal, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Literal(lit),
+            span,
+        }
     }
 
-    pub fn with_type(mut self, ty: Type) -> Self {
-        self.ty = Some(ty);
-        self
+    pub fn identifier(name: String, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Identifier(name),
+            span,
+        }
+    }
+
+    pub fn binary(lhs: Expr, op: BinaryOp, rhs: Expr, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Binary {
+                lhs: Box::new(lhs),
+                op,
+                rhs: Box::new(rhs),
+            },
+            span,
+        }
+    }
+
+    pub fn unary(op: UnaryOp, operand: Expr, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Unary {
+                op,
+                operand: Box::new(operand),
+            },
+            span,
+        }
+    }
+
+    pub fn call(func: Expr, args: Vec<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Call {
+                func: Box::new(func),
+                args,
+            },
+            span,
+        }
+    }
+
+    pub fn field_access(object: Expr, field: String, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::FieldAccess {
+                object: Box::new(object),
+                field,
+            },
+            span,
+        }
+    }
+
+    pub fn index(object: Expr, index: Expr, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Index {
+                object: Box::new(object),
+                index: Box::new(index),
+            },
+            span,
+        }
+    }
+
+    pub fn tuple(elements: Vec<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Tuple(elements),
+            span,
+        }
+    }
+
+    pub fn array(elements: Vec<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Array {
+                elements,
+                repeat: None,
+            },
+            span,
+        }
+    }
+
+    pub fn block(stmts: Vec<super::Stmt>, expr: Option<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Block {
+                stmts,
+                expr: expr.map(Box::new),
+            },
+            span,
+        }
+    }
+
+    pub fn if_expr(condition: Expr, then_branch: Expr, else_branch: Option<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::If {
+                condition: Box::new(condition),
+                then_branch: Box::new(then_branch),
+                else_branch: else_branch.map(Box::new),
+            },
+            span,
+        }
+    }
+
+    pub fn while_loop(condition: Expr, body: Expr, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::While {
+                condition: Box::new(condition),
+                body: Box::new(body),
+            },
+            span,
+        }
+    }
+
+    pub fn assignment(target: Expr, value: Expr, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Assignment {
+                target: Box::new(target),
+                value: Box::new(value),
+                op: None,
+            },
+            span,
+        }
+    }
+
+    pub fn return_expr(value: Option<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Return {
+                value: value.map(Box::new),
+            },
+            span,
+        }
+    }
+
+    pub fn break_expr(label: Option<String>, value: Option<Expr>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Break {
+                label,
+                value: value.map(Box::new),
+            },
+            span,
+        }
+    }
+
+    pub fn continue_expr(label: Option<String>, span: SourceSpan) -> Self {
+        Self {
+            kind: ExprKind::Continue { label },
+            span,
+        }
+    }
+}
+
+impl Pattern {
+    pub fn wildcard(span: SourceSpan) -> Self {
+        Self {
+            kind: PatternKind::Wildcard,
+            span,
+        }
+    }
+
+    pub fn identifier(name: String, span: SourceSpan) -> Self {
+        Self {
+            kind: PatternKind::Identifier {
+                name,
+                mutable: false,
+            },
+            span,
+        }
+    }
+
+    pub fn literal(lit: Literal, span: SourceSpan) -> Self {
+        Self {
+            kind: PatternKind::Literal(lit),
+            span,
+        }
+    }
+
+    pub fn tuple(patterns: Vec<Pattern>, span: SourceSpan) -> Self {
+        Self {
+            kind: PatternKind::Tuple(patterns),
+            span,
+        }
+    }
+}
+
+impl StructFieldExpr {
+    pub fn new(name: String, value: Expr, span: SourceSpan) -> Self {
+        Self { name, value, span }
+    }
+}
+
+impl MatchArm {
+    pub fn new(pattern: Pattern, body: Expr, span: SourceSpan) -> Self {
+        Self {
+            pattern,
+            guard: None,
+            body,
+            span,
+        }
+    }
+
+    pub fn with_guard(pattern: Pattern, guard: Expr, body: Expr, span: SourceSpan) -> Self {
+        Self {
+            pattern,
+            guard: Some(guard),
+            body,
+            span,
+        }
+    }
+}
+
+impl ClosureParam {
+    pub fn new(pattern: Pattern, span: SourceSpan) -> Self {
+        Self {
+            pattern,
+            ty: None,
+            span,
+        }
+    }
+}
+
+/// Operator precedence for binary operators.
+impl BinaryOp {
+    pub fn precedence(self) -> u8 {
+        match self {
+            BinaryOp::LogicalOr => 1,
+            BinaryOp::LogicalAnd => 2,
+            BinaryOp::Eq | BinaryOp::Ne => 3,
+            BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge => 4,
+            BinaryOp::Or => 5,
+            BinaryOp::Xor => 6,
+            BinaryOp::And => 7,
+            BinaryOp::Shl | BinaryOp::Shr => 8,
+            BinaryOp::Add | BinaryOp::Sub => 9,
+            BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod => 10,
+        }
+    }
+
+    pub fn is_right_associative(self) -> bool {
+        false // All binary operators are left-associative in T-Lang
+    }
+
+    pub fn is_comparison(self) -> bool {
+        matches!(self, BinaryOp::Eq | BinaryOp::Ne | BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge)
+    }
+
+    pub fn is_arithmetic(self) -> bool {
+        matches!(self, BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod)
+    }
+
+    pub fn is_logical(self) -> bool {
+        matches!(self, BinaryOp::LogicalAnd | BinaryOp::LogicalOr)
+    }
+
+    pub fn is_bitwise(self) -> bool {
+        matches!(self, BinaryOp::And | BinaryOp::Or | BinaryOp::Xor | BinaryOp::Shl | BinaryOp::Shr)
     }
 }
