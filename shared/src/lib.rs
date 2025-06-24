@@ -8,6 +8,8 @@
 //! - Support for all T-Lang token types
 //! - Unicode-aware string handling
 
+pub mod token;
+
 use crate::token::{Token, TokenType};
 use errors::{Result, TlError};
 use miette::SourceSpan;
