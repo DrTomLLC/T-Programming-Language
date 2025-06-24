@@ -11,8 +11,6 @@ use shared::{
     TypeKind, PrimitiveType, SafetyLevel, Result, TlError
 };
 use miette::SourceSpan;
-use crate::lexer;
-use shared::token::{Token, TokenType};
 
 // Use existing lexer from the lexer module
 use crate::lexer::{tokenize};
