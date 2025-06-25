@@ -4,7 +4,7 @@
 //! This module provides a lower-level IR that sits between the AST and target code generation.
 //! It performs type checking, safety analysis, and optimization while maintaining source location information.
 
-use crate::ast::{self, *};
+use crate::ast::{self};
 use errors::{TlError, *};
 use miette::SourceSpan;
 use std::collections::HashMap;
