@@ -16,14 +16,7 @@ mod utils;
 pub mod tir;
 
 // Re-export commonly used types at the crate root
-pub use ast::{
-    Program, Module, Item, ItemKind, Stmt, StmtKind, Expr, ExprKind,
-    Type, TypeKind, Pattern, PatternKind, Literal, BinaryOp, UnaryOp,
-    Visibility, SafetyLevel, Span, NodeId, CompilationPhase, NodeMetadata,
-    StructFields, StructField, EnumVariant, FnParam, GenericParam,
-    TraitItem, ImplItem, ExternItem, Attribute, MacroArg, MacroRule,
-    HasSpan
-};
+pub use ast::*;
 pub use token::*;
 pub use tokenizer::*;
 
