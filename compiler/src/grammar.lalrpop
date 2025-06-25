@@ -33,7 +33,7 @@ pub Struct<Identifier>: StructDecl = {
     }
 };
 
-pub Import: ImportDecl = {
+pub Import<StringLiteral>: ImportDecl = {
     "import" <path:StringLiteral> ";" => ImportDecl { path },
 };
 
@@ -41,7 +41,7 @@ pub Parameter<Identifier>: Parameter = {
     <name:Identifier> ":" <ty:Type> => Parameter { name, ty }
 };
 
-pub Field: Field = {
+pub Field<Identifier>: Field = {
     <name:Identifier> ":" <ty:Type> => Field { name, ty }
 };
 
