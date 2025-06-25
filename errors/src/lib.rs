@@ -42,7 +42,7 @@ impl From<Box<dyn std::error::Error + Send + Sync>> for SerializableError {
 }
 
 /// The main error type for T-Lang compiler.
-#[derive(Debug, Error, Diagnostic, Clone, Serialize, Deserialize)]
+#[derive(Debug, Error, Diagnostic, Serialize, Deserialize)]
 pub enum TlError {
     #[error("Lexer error: {message}")]
     #[diagnostic(code(tl::lexer))]
@@ -92,6 +92,7 @@ pub enum TlError {
     #[diagnostic(code(tl::io))]
     Io {
         message: String,
+        #[source]
         #[serde(skip)] // Skip serialization for the source error
         source_error: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
@@ -123,7 +124,7 @@ mod span_serde {
     use super::*;
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S>(span: &SourceSpan, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(span: &SourceSpan, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -131,7 +132,7 @@ mod span_serde {
         serializable_span.serialize(serializer)
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<SourceSpan, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> std::result::Result<SourceSpan, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -145,7 +146,7 @@ mod option_span_serde {
     use super::*;
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S>(span: &Option<SourceSpan>, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(span: &Option<SourceSpan>, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -158,12 +159,52 @@ mod option_span_serde {
         }
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<SourceSpan>, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> std::result::Result<Option<SourceSpan>, D::Error>
     where
         D: Deserializer<'de>,
     {
         let serializable_span: Option<SerializableSourceSpan> = Option::deserialize(deserializer)?;
         Ok(serializable_span.map(SourceSpan::from))
+    }
+}
+
+impl Clone for TlError {
+    fn clone(&self) -> Self {
+        match self {
+            TlError::Lexer { message, span, source_code } => TlError::Lexer {
+                message: message.clone(),
+                span: *span,
+                source_code: source_code.clone(),
+            },
+            TlError::Parser { message, span, source_code } => TlError::Parser {
+                message: message.clone(),
+                span: *span,
+                source_code: source_code.clone(),
+            },
+            TlError::Semantic { message, span, source_code } => TlError::Semantic {
+                message: message.clone(),
+                span: *span,
+                source_code: source_code.clone(),
+            },
+            TlError::TypeError { message, span, source_code } => TlError::TypeError {
+                message: message.clone(),
+                span: *span,
+                source_code: source_code.clone(),
+            },
+            TlError::Io { message, source_error: _ } => TlError::Io {
+                message: message.clone(),
+                source_error: None, // Can't clone trait objects, so we skip the source
+            },
+            TlError::Internal { message, location } => TlError::Internal {
+                message: message.clone(),
+                location: location.clone(),
+            },
+            TlError::Runtime { message, span, source_code } => TlError::Runtime {
+                message: message.clone(),
+                span: *span,
+                source_code: source_code.clone(),
+            },
+        }
     }
 }
 
