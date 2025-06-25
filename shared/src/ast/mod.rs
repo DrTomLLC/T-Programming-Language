@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod expr;
 pub mod stmt;
 pub mod types;
+mod ast;
 
 // Re-export all the AST node types
 pub use expr::*;
