@@ -601,7 +601,7 @@ pub trait Visitor<T = ()> {
         walk_type(self, ty)
     }
 
-    fn visit_pattern(&mut self, pattern: &Pattern) -> T {
+    fn visit_pattern(&mut self, pattern: &Pattern) -> T where Self: std::marker::Sized {
         walk_pattern(self, pattern)
     }
 }
