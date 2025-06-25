@@ -78,7 +78,6 @@ pub enum TlError {
     Io {
         message: String,
         #[diagnostic(skip)]
-        #[source_code] // Using source_code instead of implicit source
         source: Option<String>,
     },
 
