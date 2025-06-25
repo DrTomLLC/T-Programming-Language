@@ -244,8 +244,8 @@ pub mod types {
             Char => Some(32), // Unicode scalar value
             Unit => Some(0),
             Str => None, // Variable size
-            Isize => {}
-            Usize => {}
+            Isize => Some(std::mem::size_of::<isize>() * 8),
+            Usize => Some(std::mem::size_of::<usize>() * 8),
         }
     }
 }
