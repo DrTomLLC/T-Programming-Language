@@ -1,6 +1,6 @@
 // errors/src/lib.rs
 use miette::{Diagnostic, SourceSpan};
-use serde_json::value::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// The main error type for T-Lang compiler.
