@@ -3,7 +3,7 @@
 
 use crate::{Span, span::HasSpan};
 use super::{Expr, Pattern, Type};
-use crate::ast::I;
+use crate::ast::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
