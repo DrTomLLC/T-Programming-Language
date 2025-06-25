@@ -3,6 +3,44 @@ use miette::{Diagnostic, SourceSpan};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// A wrapper around SourceSpan that supports serialization
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SerializableSourceSpan {
+    pub offset: usize,
+    pub length: usize,
+}
+
+impl From<SourceSpan> for SerializableSourceSpan {
+    fn from(span: SourceSpan) -> Self {
+        Self {
+            offset: span.offset(),
+            length: span.len(),
+        }
+    }
+}
+
+impl From<SerializableSourceSpan> for SourceSpan {
+    fn from(span: SerializableSourceSpan) -> Self {
+        SourceSpan::from((span.offset, span.length))
+    }
+}
+
+/// A serializable error wrapper
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SerializableError {
+    pub message: String,
+    pub kind: String,
+}
+
+impl From<Box<dyn std::error::Error + Send + Sync>> for SerializableError {
+    fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        Self {
+            message: err.to_string(),
+            kind: "Error".to_string(),
+        }
+    }
+}
+
 /// The main error type for T-Lang compiler.
 #[derive(Debug, Error, Diagnostic, Clone, Serialize, Deserialize)]
 pub enum TlError {
@@ -11,9 +49,10 @@ pub enum TlError {
     Lexer {
         message: String,
         #[label("here")]
+        #[serde(with = "span_serde")]
         span: SourceSpan,
         #[source_code]
-        source: String,
+        source_code: String,
     },
 
     #[error("Parser error: {message}")]
@@ -21,9 +60,10 @@ pub enum TlError {
     Parser {
         message: String,
         #[label("here")]
+        #[serde(with = "span_serde")]
         span: SourceSpan,
         #[source_code]
-        source: String,
+        source_code: String,
     },
 
     #[error("Semantic error: {message}")]
@@ -31,27 +71,29 @@ pub enum TlError {
     Semantic {
         message: String,
         #[label("here")]
+        #[serde(with = "span_serde")]
         span: SourceSpan,
         #[source_code]
-        source: String,
+        source_code: String,
     },
 
     #[error("Type error: {message}")]
-    #[diagnostic(code(tl::type))]
-    Type {
+    #[diagnostic(code(tl::type_error))] // Changed from tl::type to avoid keyword
+    TypeError {
         message: String,
         #[label("here")]
+        #[serde(with = "span_serde")]
         span: SourceSpan,
         #[source_code]
-        source: String,
+        source_code: String,
     },
 
     #[error("I/O error: {message}")]
     #[diagnostic(code(tl::io))]
     Io {
         message: String,
-        #[source]
-        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        #[serde(skip)] // Skip serialization for the source error
+        source_error: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
     #[error("Internal compiler error: {message}")]
@@ -69,46 +111,96 @@ pub enum TlError {
     Runtime {
         message: String,
         #[label("here")]
+        #[serde(with = "option_span_serde")]
         span: Option<SourceSpan>,
         #[source_code]
-        source: Option<String>,
+        source_code: Option<String>,
     },
+}
+
+// Custom serialization for SourceSpan
+mod span_serde {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(span: &SourceSpan, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let serializable_span = SerializableSourceSpan::from(*span);
+        serializable_span.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SourceSpan, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let serializable_span = SerializableSourceSpan::deserialize(deserializer)?;
+        Ok(SourceSpan::from(serializable_span))
+    }
+}
+
+// Custom serialization for Option<SourceSpan>
+mod option_span_serde {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(span: &Option<SourceSpan>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match span {
+            Some(span) => {
+                let serializable_span = SerializableSourceSpan::from(*span);
+                Some(serializable_span).serialize(serializer)
+            }
+            None => None::<SerializableSourceSpan>.serialize(serializer),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<SourceSpan>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let serializable_span: Option<SerializableSourceSpan> = Option::deserialize(deserializer)?;
+        Ok(serializable_span.map(SourceSpan::from))
+    }
 }
 
 impl TlError {
     /// Create a lexer error.
-    pub fn lexer(source: String, span: SourceSpan, message: impl Into<String>) -> Self {
+    pub fn lexer(source_code: String, span: SourceSpan, message: impl Into<String>) -> Self {
         Self::Lexer {
             message: message.into(),
             span,
-            source,
+            source_code,
         }
     }
 
     /// Create a parser error.
-    pub fn parser(source: String, span: SourceSpan, message: impl Into<String>) -> Self {
+    pub fn parser(source_code: String, span: SourceSpan, message: impl Into<String>) -> Self {
         Self::Parser {
             message: message.into(),
             span,
-            source,
+            source_code,
         }
     }
 
     /// Create a semantic error.
-    pub fn semantic(source: String, span: SourceSpan, message: impl Into<String>) -> Self {
+    pub fn semantic(source_code: String, span: SourceSpan, message: impl Into<String>) -> Self {
         Self::Semantic {
             message: message.into(),
             span,
-            source,
+            source_code,
         }
     }
 
     /// Create a type error.
-    pub fn type_error(source: String, span: SourceSpan, message: impl Into<String>) -> Self {
-        Self::Type {
+    pub fn type_error(source_code: String, span: SourceSpan, message: impl Into<String>) -> Self {
+        Self::TypeError {
             message: message.into(),
             span,
-            source,
+            source_code,
         }
     }
 
@@ -116,11 +208,11 @@ impl TlError {
     pub fn io(message: impl Into<String>, source: Option<std::io::Error>) -> Self {
         Self::Io {
             message: message.into(),
-            source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
+            source_error: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
 
-    /// Create an internal error.
+    /// Create an internal compiler error.
     #[track_caller]
     pub fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
@@ -130,16 +222,16 @@ impl TlError {
     }
 
     /// Create a runtime error.
-    pub fn runtime(message: impl Into<String>, span: Option<SourceSpan>, source: Option<String>) -> Self {
+    pub fn runtime(message: impl Into<String>, span: Option<SourceSpan>, source_code: Option<String>) -> Self {
         Self::Runtime {
             message: message.into(),
             span,
-            source,
+            source_code,
         }
     }
 }
 
-/// Error codes for categorizing different types of errors.
+/// Error codes for different types of errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorCode {
     // Lexer errors
@@ -178,47 +270,69 @@ pub enum ErrorCode {
     Unsupported,
     InvalidInput,
     InternalError,
+
+    // Generic categories
+    Lexer,
+    Parser,
+    Semantic,
+    TypeError,
+    Io,
+    Internal,
+    Runtime,
 }
 
 /// Result type alias for T-Lang operations.
 pub type Result<T> = std::result::Result<T, TlError>;
 
-/// Error collector for accumulating multiple errors during compilation.
-#[derive(Debug, Default)]
+/// Error collector for gathering multiple errors during compilation.
+#[derive(Debug, Clone, Default)]
 pub struct ErrorCollector {
     errors: Vec<TlError>,
     warnings: Vec<TlError>,
 }
 
 impl ErrorCollector {
+    /// Create a new error collector.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add an error to the collection.
     pub fn add_error(&mut self, error: TlError) {
         self.errors.push(error);
     }
 
+    /// Add a warning to the collection.
     pub fn add_warning(&mut self, warning: TlError) {
         self.warnings.push(warning);
     }
 
+    /// Check if there are any errors.
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
 
+    /// Check if there are any warnings.
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
 
+    /// Get all errors.
     pub fn errors(&self) -> &[TlError] {
         &self.errors
     }
 
+    /// Get all warnings.
     pub fn warnings(&self) -> &[TlError] {
         &self.warnings
     }
 
+    /// Get all diagnostics (errors and warnings).
+    pub fn all_diagnostics(&self) -> Vec<&TlError> {
+        self.errors.iter().chain(self.warnings.iter()).collect()
+    }
+
+    /// Clear all collected errors and warnings.
     pub fn clear(&mut self) {
         self.errors.clear();
         self.warnings.clear();
