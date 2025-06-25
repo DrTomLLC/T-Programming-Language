@@ -9,7 +9,7 @@ pub mod ast;
 pub mod token;
 pub mod tokenizer;
 pub mod tir;
-pub mod Sourcespan;
+pub mod SourceSpan;
 
 // Re-export commonly used types
 pub use ast::*;
