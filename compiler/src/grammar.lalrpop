@@ -24,7 +24,7 @@ pub Function<Identifier>: FunctionDecl = {
     }
 };
 
-pub Struct: StructDecl = {
+pub Struct<Identifier>: StructDecl = {
     "struct" <name:Identifier> "{" <fields:CommaList<Field>> "}" => {
         StructDecl {
             name,
