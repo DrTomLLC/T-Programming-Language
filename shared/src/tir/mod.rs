@@ -315,7 +315,7 @@ impl TirBuilder {
         })
     }
 
-    fn build_block(&mut self, block: &ast::Block) -> Result<TirBlock> {
+    fn build_block(&mut self, block: &ast::Block) -> Result<TirBlock, E> {
         let mut instructions = Vec::new();
 
         for stmt in &block.stmts {
