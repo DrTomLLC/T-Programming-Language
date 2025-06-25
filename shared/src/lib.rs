@@ -25,7 +25,7 @@ pub use ast::{
     HasSpan
 };
 pub use token::*;
-pub use tokenizer::{tokenize, Tokenizer};
+pub use tokenizer::*;
 
 // Re-export error handling
 pub use errors::{Result, TlError};
