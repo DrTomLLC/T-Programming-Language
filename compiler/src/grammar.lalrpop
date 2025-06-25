@@ -45,7 +45,7 @@ pub Field<Identifier>: Field = {
     <name:Identifier> ":" <ty:Type> => Field { name, ty }
 };
 
-pub Type<Identifier>: Type = {
+pub Type: Type = {
     Identifier => Type::Named(<>),
     "i32" => Type::I32,
     "f64" => Type::F64,
@@ -57,7 +57,7 @@ pub Block: Block = {
     "{" <stmts:Statement*> <expr:Expression?> "}" => Block { stmts, expr }
 };
 
-pub Statement<Identifier>: Statement = {
+pub Statement: Statement = {
     <expr:Expression> ";" => Statement::Expression(expr),
     "let" <name:Identifier> "=" <expr:Expression> ";" => Statement::Let { name, expr },
     "return" <expr:Expression?> ";" => Statement::Return(expr),
