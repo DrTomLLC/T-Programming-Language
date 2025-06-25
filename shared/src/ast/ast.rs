@@ -90,7 +90,6 @@ impl<'de> Deserialize<'de> for Effects {
     where
         D: Deserializer<'de>,
     {
-        use enumflags2::BitFlag;
         let bits = u8::deserialize(deserializer)?;
         let flags = BitFlags::<Effects>::from_bits_truncate(bits);
         if flags.is_empty() {

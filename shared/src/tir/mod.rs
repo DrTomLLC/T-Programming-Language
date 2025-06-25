@@ -472,7 +472,7 @@ impl TirBuilder {
                     ast::PrimitiveType::I32 => TirTypeKind::I32,
                     ast::PrimitiveType::I64 => TirTypeKind::I64,
                     ast::PrimitiveType::I128 => TirTypeKind::I128,
-                    ast::PrimitiveType::ISize => TirTypeKind::ISize,
+                    ast::PrimitiveType::Isize => TirTypeKind::ISize,
                     ast::PrimitiveType::U8 => TirTypeKind::U8,
                     ast::PrimitiveType::U16 => TirTypeKind::U16,
                     ast::PrimitiveType::U32 => TirTypeKind::U32,
