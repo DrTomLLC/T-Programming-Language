@@ -478,7 +478,7 @@ impl TirBuilder {
                     ast::PrimitiveType::U32 => TirTypeKind::U32,
                     ast::PrimitiveType::U64 => TirTypeKind::U64,
                     ast::PrimitiveType::U128 => TirTypeKind::U128,
-                    ast::PrimitiveType::USize => TirTypeKind::USize,
+                    ast::PrimitiveType::Usize => TirTypeKind::USize,
                     ast::PrimitiveType::F32 => TirTypeKind::F32,
                     ast::PrimitiveType::F64 => TirTypeKind::F64,
                     ast::PrimitiveType::Char => TirTypeKind::Char,
