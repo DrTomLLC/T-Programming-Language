@@ -98,3 +98,14 @@ impl Token {
         )
     }
 }
+/// A stream of tokens for macro processing
+#[derive(Debug, Clone, PartialEq)]
+pub struct TokenStream {
+    pub tokens: Vec<Token>,
+}
+
+impl TokenStream {
+    pub fn new() -> Self {
+        Self { tokens: Vec::new() }
+    }
+}
