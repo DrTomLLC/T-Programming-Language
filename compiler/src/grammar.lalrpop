@@ -1,249 +1,672 @@
+// compiler/src/grammar.lalrpop
+//! LALRPOP grammar for T-Lang.
+//! Comprehensive parser supporting all major language constructs.
+
 use std::str::FromStr;
-use crate::ast::*;
+use shared::ast::*;
+use shared::{TokenType, Span};
+use miette::SourceSpan;
 
-grammar;
+grammar(source: &str);
 
-pub Program: Vec<Item> = {
-    Item* => <>
+// Terminals - map token types to LALRPOP patterns
+extern {
+    type Location = usize;
+    type Error = String;
+
+    enum TokenType {
+        // Literals
+        "integer" => TokenType::Integer(<i64>),
+        "float" => TokenType::Float(<f64>),
+        "string" => TokenType::String(<String>),
+        "char" => TokenType::Char(<char>),
+        "true" => TokenType::True,
+        "false" => TokenType::False,
+
+        // Identifiers
+        "identifier" => TokenType::Identifier(<String>),
+
+        // Keywords
+        "as" => TokenType::As,
+        "async" => TokenType::Async,
+        "await" => TokenType::Await,
+        "break" => TokenType::Break,
+        "const" => TokenType::Const,
+        "continue" => TokenType::Continue,
+        "else" => TokenType::Else,
+        "enum" => TokenType::Enum,
+        "fn" => TokenType::Fn,
+        "for" => TokenType::For,
+        "if" => TokenType::If,
+        "impl" => TokenType::Impl,
+        "in" => TokenType::In,
+        "let" => TokenType::Let,
+        "loop" => TokenType::Loop,
+        "match" => TokenType::Match,
+        "mod" => TokenType::Mod,
+        "move" => TokenType::Move,
+        "mut" => TokenType::Mut,
+        "pub" => TokenType::Pub,
+        "ref" => TokenType::Ref,
+
+        // Primitive Types
+        "i8" => TokenType::I8,
+        "i16" => TokenType::I16,
+        "i32" => TokenType::I32,
+        "i64" => TokenType::I64,
+        "i128" => TokenType::I128,
+        "isize" => TokenType::ISize,
+        "u8" => TokenType::U8,
+        "u16" => TokenType::U16,
+        "u32" => TokenType::U32,
+        "u64" => TokenType::U64,
+        "u128" => TokenType::U128,
+        "usize" => TokenType::USize,
+        "f32" => TokenType::F32,
+        "f64" => TokenType::F64,
+        "bool" => TokenType::Bool,
+        "char" => TokenType::Char,
+        "str" => TokenType::Str,
+        "return" => TokenType::Return,
+        "self" => TokenType::SelfValue,
+        "Self" => TokenType::SelfType,
+        "static" => TokenType::Static,
+        "struct" => TokenType::Struct,
+        "super" => TokenType::Super,
+        "trait" => TokenType::Trait,
+        "type" => TokenType::Type,
+        "union" => TokenType::Union,
+        "unsafe" => TokenType::Unsafe,
+        "use" => TokenType::Use,
+        "where" => TokenType::Where,
+        "while" => TokenType::While,
+        "_" => TokenType::Underscore,
+
+        // Punctuation
+        "(" => TokenType::LParen,
+        ")" => TokenType::RParen,
+        "{" => TokenType::LBrace,
+        "}" => TokenType::RBrace,
+        "[" => TokenType::LBracket,
+        "]" => TokenType::RBracket,
+        "," => TokenType::Comma,
+        ";" => TokenType::Semicolon,
+        ":" => TokenType::Colon,
+        "::" => TokenType::ColonColon,
+        "." => TokenType::Dot,
+        ".." => TokenType::DotDot,
+        "..." => TokenType::DotDotDot,
+        "..=" => TokenType::DotDotEq,
+        "?" => TokenType::Question,
+        "->" => TokenType::Arrow,
+        "=>" => TokenType::FatArrow,
+        "@" => TokenType::At,
+        "#" => TokenType::Pound,
+        "$" => TokenType::Dollar,
+        "~" => TokenType::Tilde,
+
+        // Operators
+        "+" => TokenType::Plus,
+        "-" => TokenType::Minus,
+        "*" => TokenType::Star,
+        "/" => TokenType::Slash,
+        "%" => TokenType::Percent,
+        "^" => TokenType::Caret,
+        "!" => TokenType::Bang,
+        "&" => TokenType::And,
+        "|" => TokenType::Or,
+        "<<" => TokenType::Shl,
+        ">>" => TokenType::Shr,
+
+        // Comparison
+        "=" => TokenType::Eq,
+        "==" => TokenType::EqEq,
+        "!=" => TokenType::Ne,
+        "<" => TokenType::Lt,
+        "<=" => TokenType::Le,
+        ">" => TokenType::Gt,
+        ">=" => TokenType::Ge,
+
+        // Logical
+        "&&" => TokenType::AndAnd,
+        "||" => TokenType::OrOr,
+
+        // Assignment
+        "+=" => TokenType::PlusEq,
+        "-=" => TokenType::MinusEq,
+        "*=" => TokenType::StarEq,
+        "/=" => TokenType::SlashEq,
+        "%=" => TokenType::PercentEq,
+        "^=" => TokenType::CaretEq,
+        "&=" => TokenType::AndEq,
+        "|=" => TokenType::OrEq,
+        "<<=" => TokenType::ShlEq,
+        ">>=" => TokenType::ShrEq,
+    }
+}
+
+// Helper macro for creating spans
+Spanned<T>: (T, SourceSpan) = {
+    <start:@L> <value:T> <end:@R> => (value, SourceSpan::new(start.into(), end - start))
 };
 
-pub Item: Item = {
-    Function => Item::Function(<>),
-    Struct => Item::Struct(<>),
-    Import => Item::Import(<>),
-};
-
-pub Function<Identifier>: FunctionDecl = {
-    "fn" <name:Identifier> "(" <params:CommaList<Parameter>> ")" <return_type:("->" <Type>)?> <body:Block> => {
-        FunctionDecl {
-            name,
-            params,
-            return_type,
-            body,
-        }
+// Root grammar rule
+pub Program: Program = {
+    <items:Item*> => Program {
+        items,
+        span: SourceSpan::new(0.into(), source.len()),
     }
 };
 
-pub Struct<Identifier>: StructDecl = {
-    "struct" <name:Identifier> "{" <fields:CommaList<Field>> "}" => {
-        StructDecl {
+// Items (top-level declarations)
+Item: Item = {
+    <s:Spanned<ItemKind>> => Item::new(s.0, s.1),
+};
+
+ItemKind: ItemKind = {
+    Function,
+    Struct,
+    Enum,
+    Use,
+    Mod,
+    Const,
+    Static,
+    TypeAlias,
+};
+
+// Function definitions
+Function: ItemKind = {
+    <vis:Visibility?> "fn" <name:Identifier> "(" <params:FnParams?> ")" <ret:ReturnType?> <body:Block> => {
+        ItemKind::Function {
             name,
-            fields,
+            generics: vec![], // TODO: Add generics support
+            params: params.unwrap_or_default(),
+            return_type: ret,
+            body: Some(Expr::new(ExprKind::Block(body), SourceSpan::new(0.into(), 0))),
+            safety: SafetyLevel::Safe,
+            async_: false,
+            const_: false,
         }
-    }
+    },
 };
 
-pub Import<StringLiteral>: ImportDecl = {
-    "import" <path:StringLiteral> ";" => ImportDecl { path },
+FnParams: Vec<stmt::FnParam> = {
+    <first:FnParam> <rest:("," <FnParam>)*> => {
+        let mut params = vec![first];
+        params.extend(rest);
+        params
+    },
 };
 
-pub Parameter<Identifier>: Parameter = {
-    <name:Identifier> ":" <ty:Type> => Parameter { name, ty }
+FnParam: stmt::FnParam = {
+    <pat:Pattern> ":" <ty:Type> => stmt::FnParam {
+        pattern: pat,
+        ty,
+        default: None,
+        attrs: vec![],
+        span: SourceSpan::new(0.into(), 0),
+    },
 };
 
-pub Field<Identifier>: Field = {
-    <name:Identifier> ":" <ty:Type> => Field { name, ty }
+ReturnType: Type = {
+    "->" <Type> => <>,
 };
 
-pub Type: Type = {
-    Identifier => Type::Named(<>),
-    "i32" => Type::I32,
-    "f64" => Type::F64,
-    "bool" => Type::Bool,
-    "string" => Type::String,
+// Struct definitions
+Struct: ItemKind = {
+    <vis:Visibility?> "struct" <name:Identifier> "{" <fields:StructFields?> "}" => {
+        ItemKind::Struct {
+            name,
+            generics: vec![],
+            fields: stmt::StructFields::Named(fields.unwrap_or_default()),
+        }
+    },
 };
 
-pub Block: Block = {
-    "{" <stmts:Statement*> <expr:Expression?> "}" => Block { stmts, expr }
+StructFields: Vec<stmt::StructField> = {
+    <first:StructField> <rest:("," <StructField>)*> ","? => {
+        let mut fields = vec![first];
+        fields.extend(rest);
+        fields
+    },
 };
 
-pub Statement: Statement = {
-    <expr:Expression> ";" => Statement::Expression(expr),
-    "let" <name:Identifier> "=" <expr:Expression> ";" => Statement::Let { name, expr },
-    "return" <expr:Expression?> ";" => Statement::Return(expr),
+StructField: stmt::StructField = {
+    <vis:Visibility?> <name:Identifier> ":" <ty:Type> => stmt::StructField {
+        name,
+        ty,
+        vis: vis.unwrap_or(Visibility::Private),
+        attrs: vec![],
+        span: SourceSpan::new(0.into(), 0),
+    },
 };
 
-pub Expression: Expression = {
+// Enum definitions
+Enum: ItemKind = {
+    <vis:Visibility?> "enum" <name:Identifier> "{" <variants:EnumVariants?> "}" => {
+        ItemKind::Enum {
+            name,
+            generics: vec![],
+            variants: variants.unwrap_or_default(),
+        }
+    },
+};
+
+EnumVariants: Vec<stmt::EnumVariant> = {
+    <first:EnumVariant> <rest:("," <EnumVariant>)*> ","? => {
+        let mut variants = vec![first];
+        variants.extend(rest);
+        variants
+    },
+};
+
+EnumVariant: stmt::EnumVariant = {
+    <name:Identifier> => stmt::EnumVariant {
+        name,
+        fields: stmt::StructFields::Unit,
+        discriminant: None,
+        attrs: vec![],
+        span: SourceSpan::new(0.into(), 0),
+    },
+    <name:Identifier> "(" <types:TypeList> ")" => stmt::EnumVariant {
+        name,
+        fields: stmt::StructFields::Unnamed(types),
+        discriminant: None,
+        attrs: vec![],
+        span: SourceSpan::new(0.into(), 0),
+    },
+    <name:Identifier> "{" <fields:StructFields> "}" => stmt::EnumVariant {
+        name,
+        fields: stmt::StructFields::Named(fields),
+        discriminant: None,
+        attrs: vec![],
+        span: SourceSpan::new(0.into(), 0),
+    },
+};
+
+// Use declarations
+Use: ItemKind = {
+    <vis:Visibility?> "use" <path:Path> ";" => ItemKind::Use {
+        path,
+        alias: None,
+        glob: false,
+    },
+};
+
+// Module declarations
+Mod: ItemKind = {
+    <vis:Visibility?> "mod" <name:Identifier> ";" => ItemKind::Module {
+        name,
+        items: vec![],
+        inline: false,
+    },
+    <vis:Visibility?> "mod" <name:Identifier> "{" <items:Item*> "}" => ItemKind::Module {
+        name,
+        items,
+        inline: true,
+    },
+};
+
+// Constant declarations
+Const: ItemKind = {
+    <vis:Visibility?> "const" <name:Identifier> ":" <ty:Type> "=" <value:Expression> ";" => {
+        ItemKind::Const { name, ty, value }
+    },
+};
+
+// Static declarations
+Static: ItemKind = {
+    <vis:Visibility?> "static" <mut_:("mut")?> <name:Identifier> ":" <ty:Type> "=" <value:Expression> ";" => {
+        ItemKind::Static {
+            name,
+            ty,
+            value,
+            mutable: mut_.is_some(),
+        }
+    },
+};
+
+// Type aliases
+TypeAlias: ItemKind = {
+    <vis:Visibility?> "type" <name:Identifier> "=" <ty:Type> ";" => {
+        ItemKind::TypeAlias {
+            name,
+            generics: vec![],
+            ty,
+        }
+    },
+};
+
+// Visibility modifiers
+Visibility: Visibility = {
+    "pub" => Visibility::Public,
+};
+
+// Statements
+Statement: Stmt = {
+    <s:Spanned<StmtKind>> => Stmt::new(s.0, s.1),
+};
+
+StmtKind: StmtKind = {
+    <expr:Expression> ";" => StmtKind::Expr(expr),
+    LetStmt,
+};
+
+LetStmt: StmtKind = {
+    "let" <mut_:("mut")?> <pat:Pattern> <ty:(":" <Type>)?> <init:("=" <Expression>)?> ";" => {
+        StmtKind::Let {
+            pattern: pat,
+            ty,
+            initializer: init,
+            mutable: mut_.is_some(),
+        }
+    },
+};
+
+// Expressions
+Expression: Expr = {
     Assignment,
 };
 
-pub Assignment: Expression = {
-    <lhs:Or> "=" <rhs:Assignment> => Expression::Assignment {
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
+Assignment: Expr = {
+    <left:OrExpr> <op:AssignOp> <right:Assignment> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Assign {
+            target: Box::new(left),
+            op: op,
+            value: Box::new(right),
+        }, span)
     },
-    Or,
+    OrExpr,
 };
 
-pub Or: Expression = {
-    <lhs:And> "||" <rhs:Or> => Expression::BinaryOp {
-        op: BinaryOperator::Or,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    },
-    And,
+AssignOp: Option<BinaryOp> = {
+    "=" => None,
+    "+=" => Some(BinaryOp::Add),
+    "-=" => Some(BinaryOp::Sub),
+    "*=" => Some(BinaryOp::Mul),
+    "/=" => Some(BinaryOp::Div),
+    "%=" => Some(BinaryOp::Mod),
 };
 
-pub And: Expression = {
-    <lhs:Equality> "&&" <rhs:And> => Expression::BinaryOp {
-        op: BinaryOperator::And,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
+// Binary expressions with precedence climbing
+OrExpr: Expr = {
+    <left:AndExpr> <rest:("||" <AndExpr>)*> => {
+        rest.into_iter().fold(left, |acc, (_, right)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Binary {
+                left: Box::new(acc),
+                op: BinaryOp::Or,
+                right: Box::new(right),
+            }, span)
+        })
     },
-    Equality,
 };
 
-pub Equality: Expression = {
-    <lhs:Comparison> "==" <rhs:Equality> => Expression::BinaryOp {
-        op: BinaryOperator::Equal,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
+AndExpr: Expr = {
+    <left:EqExpr> <rest:("&&" <EqExpr>)*> => {
+        rest.into_iter().fold(left, |acc, (_, right)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Binary {
+                left: Box::new(acc),
+                op: BinaryOp::And,
+                right: Box::new(right),
+            }, span)
+        })
     },
-    <lhs:Comparison> "!=" <rhs:Equality> => Expression::BinaryOp {
-        op: BinaryOperator::NotEqual,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    },
-    Comparison,
 };
 
-pub Comparison: Expression = {
-    <lhs:Addition> "<" <rhs:Comparison> => Expression::BinaryOp {
-        op: BinaryOperator::Less,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
+EqExpr: Expr = {
+    <left:CmpExpr> <rest:EqOp*> => {
+        rest.into_iter().fold(left, |acc, (op, right)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Binary {
+                left: Box::new(acc),
+                op,
+                right: Box::new(right),
+            }, span)
+        })
     },
-    <lhs:Addition> ">" <rhs:Comparison> => Expression::BinaryOp {
-        op: BinaryOperator::Greater,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    },
-    Addition,
 };
 
-pub Addition: Expression = {
-    <lhs:Multiplication> "+" <rhs:Addition> => Expression::BinaryOp {
-        op: BinaryOperator::Add,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    },
-    <lhs:Multiplication> "-" <rhs:Addition> => Expression::BinaryOp {
-        op: BinaryOperator::Subtract,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    },
-    Multiplication,
+EqOp: (BinaryOp, Expr) = {
+    "==" <CmpExpr> => (BinaryOp::Eq, <>),
+    "!=" <CmpExpr> => (BinaryOp::Ne, <>),
 };
 
-pub Multiplication: Expression = {
-    <lhs:Unary> "*" <rhs:Multiplication> => Expression::BinaryOp {
-        op: BinaryOperator::Multiply,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
+CmpExpr: Expr = {
+    <left:AddExpr> <rest:CmpOp*> => {
+        rest.into_iter().fold(left, |acc, (op, right)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Binary {
+                left: Box::new(acc),
+                op,
+                right: Box::new(right),
+            }, span)
+        })
     },
-    <lhs:Unary> "/" <rhs:Multiplication> => Expression::BinaryOp {
-        op: BinaryOperator::Divide,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    },
-    Unary,
 };
 
-pub Unary: Expression = {
-    "!" <expr:Unary> => Expression::UnaryOp {
-        op: UnaryOperator::Not,
-        expr: Box::new(expr),
+CmpOp: (BinaryOp, Expr) = {
+    "<" <AddExpr> => (BinaryOp::Lt, <>),
+    "<=" <AddExpr> => (BinaryOp::Le, <>),
+    ">" <AddExpr> => (BinaryOp::Gt, <>),
+    ">=" <AddExpr> => (BinaryOp::Ge, <>),
+};
+
+AddExpr: Expr = {
+    <left:MulExpr> <rest:AddOp*> => {
+        rest.into_iter().fold(left, |acc, (op, right)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Binary {
+                left: Box::new(acc),
+                op,
+                right: Box::new(right),
+            }, span)
+        })
     },
-    "-" <expr:Unary> => Expression::UnaryOp {
-        op: UnaryOperator::Negate,
-        expr: Box::new(expr),
+};
+
+AddOp: (BinaryOp, Expr) = {
+    "+" <MulExpr> => (BinaryOp::Add, <>),
+    "-" <MulExpr> => (BinaryOp::Sub, <>),
+};
+
+MulExpr: Expr = {
+    <left:UnaryExpr> <rest:MulOp*> => {
+        rest.into_iter().fold(left, |acc, (op, right)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Binary {
+                left: Box::new(acc),
+                op,
+                right: Box::new(right),
+            }, span)
+        })
     },
-    Call,
 };
 
-pub Call: Expression = {
-    <func:Primary> "(" <args:CommaList<Expression>> ")" => Expression::FunctionCall {
-        func: Box::new(func),
-        args,
+MulOp: (BinaryOp, Expr) = {
+    "*" <UnaryExpr> => (BinaryOp::Mul, <>),
+    "/" <UnaryExpr> => (BinaryOp::Div, <>),
+    "%" <UnaryExpr> => (BinaryOp::Mod, <>),
+};
+
+UnaryExpr: Expr = {
+    <op:UnaryOp> <expr:UnaryExpr> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Unary { op, expr: Box::new(expr) }, span)
     },
-    Primary,
+    CallExpr,
 };
 
-pub Primary: Expression = {
-    IntegerLiteral => Expression::Integer(<>),
-    FloatLiteral => Expression::Float(<>),
-    StringLiteral => Expression::String(<>),
-    BoolLiteral => Expression::Bool(<>),
-    Identifier => Expression::Identifier(<>),
-    "(" <Expression> ")",
+UnaryOp: UnaryOp = {
+    "-" => UnaryOp::Neg,
+    "!" => UnaryOp::Not,
+    "~" => UnaryOp::BitNot,
 };
 
-CommaList<T>: Vec<T> = {
-    <mut v:(<T> ",")*> <e:T?> => match e {
-        None => v,
-        Some(e) => {
-            v.push(e);
-            v
-        }
-    }
+CallExpr: Expr = {
+    <callee:PrimaryExpr> <calls:("(" <ExprList?> ")")*> => {
+        calls.into_iter().fold(callee, |acc, (_, args, _)| {
+            let span = SourceSpan::new(0.into(), 0);
+            Expr::new(ExprKind::Call {
+                callee: Box::new(acc),
+                args: args.unwrap_or_default(),
+                safety: SafetyLevel::Safe,
+            }, span)
+        })
+    },
 };
 
-match {
-    r"\s*" => { }, // Skip whitespace
-    r"//[^\n\r]*[\n\r]*" => { }, // Skip line comments
-    r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/" => { }, // Skip block comments
-    
-    // Keywords
-    "fn",
-    "struct", 
-    "import",
-    "let",
-    "return",
-    "if",
-    "else",
-    "while",
-    "for",
-    "break",
-    "continue",
-    "true",
-    "false",
-    
-    // Types
-    "i32",
-    "f64", 
-    "bool",
-    "string",
-    
-    // Operators and punctuation
-    "==",
-    "!=", 
-    "<=",
-    ">=",
-    "&&",
-    "||",
-    "->",
-    "=",
-    "+",
-    "-", 
-    "*",
-    "/",
-    "<",
-    ">",
-    "!",
-    "(",
-    ")",
-    "{",
-    "}",
-    "[",
-    "]",
-    ",",
-    ";",
-    ":",
-    
-    // Literals
-    r"[0-9]+" => IntegerLiteral,
-    r"[0-9]+\.[0-9]+" => FloatLiteral,
-    r#""([^"\\]|\\.)*""# => StringLiteral,
-    r"true|false" => BoolLiteral,
-    r"[a-zA-Z_][a-zA-Z0-9_]*" => Identifier,
-}
+PrimaryExpr: Expr = {
+    Literal,
+    Variable,
+    Block,
+    If,
+    "(" <Expression> ")" => <>,
+};
+
+// Literals
+Literal: Expr = {
+    <i:"integer"> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Literal(shared::Literal::Integer(i as i128)), span)
+    },
+    <f:"float"> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Literal(shared::Literal::Float(f)), span)
+    },
+    <s:"string"> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Literal(shared::Literal::String(s)), span)
+    },
+    <c:"char"> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Literal(shared::Literal::Char(c)), span)
+    },
+    "true" => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Literal(shared::Literal::Bool(true)), span)
+    },
+    "false" => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Literal(shared::Literal::Bool(false)), span)
+    },
+};
+
+// Variables
+Variable: Expr = {
+    <path:Path> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Variable { path }, span)
+    },
+};
+
+// Block expressions
+Block: Block = {
+    "{" <stmts:Statement*> <expr:Expression?> "}" => Block {
+        statements: stmts,
+        expr: expr.map(Box::new),
+        span: SourceSpan::new(0.into(), 0),
+    },
+};
+
+// If expressions
+If: Expr = {
+    "if" <cond:Expression> <then_block:Block> <else_:("else" <ElseClause>)?> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::If {
+            condition: Box::new(cond),
+            then_branch: Box::new(Expr::new(ExprKind::Block(then_block), span)),
+            else_branch: else_.map(Box::new),
+        }, span)
+    },
+};
+
+ElseClause: Expr = {
+    <If> => <>,
+    <block:Block> => {
+        let span = SourceSpan::new(0.into(), 0);
+        Expr::new(ExprKind::Block(block), span)
+    },
+};
+
+// Types
+Type: Type = {
+    <kind:TypeKind> => Type::new(kind, SourceSpan::new(0.into(), 0)),
+};
+
+TypeKind: TypeKind = {
+    <prim:PrimitiveType> => TypeKind::Primitive(prim),
+    <path:Path> => TypeKind::Named { path, generics: vec![] },
+    "&" <mut_:("mut")?> <ty:Type> => TypeKind::Reference {
+        target: Box::new(ty),
+        lifetime: None,
+        mutable: mut_.is_some(),
+    },
+};
+
+PrimitiveType: PrimitiveType = {
+    "i8" => PrimitiveType::I8,
+    "i16" => PrimitiveType::I16,
+    "i32" => PrimitiveType::I32,
+    "i64" => PrimitiveType::I64,
+    "i128" => PrimitiveType::I128,
+    "isize" => PrimitiveType::ISize,
+    "u8" => PrimitiveType::U8,
+    "u16" => PrimitiveType::U16,
+    "u32" => PrimitiveType::U32,
+    "u64" => PrimitiveType::U64,
+    "u128" => PrimitiveType::U128,
+    "usize" => PrimitiveType::USize,
+    "f32" => PrimitiveType::F32,
+    "f64" => PrimitiveType::F64,
+    "bool" => PrimitiveType::Bool,
+    "char" => PrimitiveType::Char,
+    "str" => PrimitiveType::Str,
+};
+
+// Patterns
+Pattern: Pattern = {
+    <kind:PatternKind> => Pattern {
+        kind,
+        span: SourceSpan::new(0.into(), 0),
+    },
+};
+
+PatternKind: PatternKind = {
+    "_" => PatternKind::Wild,
+    <id:Identifier> => PatternKind::Ident(id),
+};
+
+// Paths
+Path: Vec<String> = {
+    <first:Identifier> <rest:("::" <Identifier>)*> => {
+        let mut path = vec![first];
+        path.extend(rest);
+        path
+    },
+};
+
+// Identifiers
+Identifier: String = {
+    "identifier" => <>,
+};
+
+// Expression lists
+ExprList: Vec<Expr> = {
+    <first:Expression> <rest:("," <Expression>)*> ","? => {
+        let mut exprs = vec![first];
+        exprs.extend(rest);
+        exprs
+    },
+};
+
+// Type lists
+TypeList: Vec<Type> = {
+    <first:Type> <rest:("," <Type>)*> ","? => {
+        let mut types = vec![first];
+        types.extend(rest);
+        types
+    },
+};
