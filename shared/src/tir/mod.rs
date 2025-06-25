@@ -376,7 +376,7 @@ impl TirBuilder {
         Ok(value_id)
     }
 
-    fn build_literal(&mut self, lit: &ast::Literal, span: SourceSpan) -> Result<ValueId> {
+    fn build_literal(&mut self, lit: &ast::Literal, span: SourceSpan) -> Result<ValueId, E> {
         let value_id = self.next_value_id();
 
         let instruction_kind = match lit {
