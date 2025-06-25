@@ -175,7 +175,7 @@ pub mod names {
 
 /// Utilities for working with types and type checking.
 pub mod types {
-    use crate::{Type, TypeKind};
+    use crate::{PrimitiveType, Type, TypeKind};
 
     /// Check if a type is a primitive type.
     pub fn is_primitive(ty: &Type) -> bool {
@@ -244,6 +244,8 @@ pub mod types {
             Char => Some(32), // Unicode scalar value
             Unit => Some(0),
             Str => None, // Variable size
+            Isize => {}
+            Usize => {}
         }
     }
 }
