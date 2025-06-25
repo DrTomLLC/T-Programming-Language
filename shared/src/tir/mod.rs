@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// A complete TIR module containing all program components
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirModule {
     pub name: String,
     pub functions: Vec<TirFunction>,
@@ -23,7 +23,7 @@ pub struct TirModule {
 }
 
 /// A function in TIR with complete signature and body
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirFunction {
     pub id: FunctionId,
     pub name: String,
@@ -37,7 +37,7 @@ pub struct TirFunction {
 }
 
 /// A basic block in the control flow graph
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirBlock {
     pub id: BlockId,
     pub instructions: Vec<TirInstruction>,
@@ -47,7 +47,7 @@ pub struct TirBlock {
 }
 
 /// TIR instructions for all operations
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirInstruction {
     pub id: InstructionId,
     pub kind: TirInstructionKind,
