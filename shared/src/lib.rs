@@ -11,6 +11,7 @@ pub mod tokenizer;
 pub mod tir;
 pub mod source_span;
 pub mod span;
+mod span;
 
 // Re-export commonly used types
 pub use ast::*;
