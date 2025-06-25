@@ -13,7 +13,7 @@ pub Item: Item = {
     Import => Item::Import(<>),
 };
 
-pub Function: FunctionDecl = {
+pub Function<Identifier>: FunctionDecl = {
     "fn" <name:Identifier> "(" <params:CommaList<Parameter>> ")" <return_type:("->" <Type>)?> <body:Block> => {
         FunctionDecl {
             name,
