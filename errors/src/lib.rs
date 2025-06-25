@@ -18,6 +18,15 @@ pub enum TlError {
         #[source]
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
+    #[error("Internal compiler error: {message}")]
+    #[diagnostic(
+        code(t::internal),
+        help("This is a bug in the T-Lang compiler. Please report it.")
+    )]
+    Internal {
+        message: String,
+        location: String,
+    },
 }
 
 impl TlError {
@@ -35,5 +44,4 @@ impl TlError {
             source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
         }
     }
-    
 }

@@ -237,7 +237,7 @@ pub struct TirExport {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirAttribute {
     pub name: String,
     pub args: Vec<String>,
