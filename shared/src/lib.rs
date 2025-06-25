@@ -24,7 +24,7 @@ pub use ast::{
     TraitItem, ImplItem, ExternItem, Attribute, MacroArg, MacroRule,
     HasSpan
 };
-pub use token::{Token, TokenType, TokenStream};
+pub use token::*;
 pub use tokenizer::{tokenize, Tokenizer};
 
 // Re-export error handling
