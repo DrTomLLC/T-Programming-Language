@@ -6,7 +6,7 @@ use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
 /// All possible errors in the T-Lang system.
-#[derive(Error, Diagnostic, Debug, Clone)]
+#[derive(Error, Diagnostic, Debug)]
 pub enum TlError {
     #[error("Lexical error: {message}")]
     #[diagnostic(
@@ -78,7 +78,7 @@ pub enum TlError {
     Io {
         message: String,
         #[diagnostic(skip)]
-        source: Option<std::io::Error>,
+        source: Option<String>,
     },
 
     #[error("Internal compiler error: {message}")]
@@ -174,6 +174,75 @@ pub enum Severity {
 
 /// Result type for T-Lang operations.
 pub type Result<T> = std::result::Result<T, TlError>;
+
+impl Clone for TlError {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Lexer { src, span, message } => Self::Lexer {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Parser { src, span, message } => Self::Parser {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Type { src, span, message } => Self::Type {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Safety { src, span, message } => Self::Safety {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Runtime { src, span, message } => Self::Runtime {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Io { message, source } => Self::Io {
+                message: message.clone(),
+                source: source.as_ref().map(|e| e.to_string()),
+            },
+            Self::Internal { message, location } => Self::Internal {
+                message: message.clone(),
+                location: location.clone(),
+            },
+            Self::NameResolution { src, span, message } => Self::NameResolution {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::BorrowCheck { src, span, message } => Self::BorrowCheck {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Module { src, span, message } => Self::Module {
+                src: src.clone(),
+                span: span.clone(),
+                message: message.clone(),
+            },
+            Self::Codegen { message, context } => Self::Codegen {
+                message: message.clone(),
+                context: context.clone(),
+            },
+            Self::Plugin { message, plugin_name } => Self::Plugin {
+                message: message.clone(),
+                plugin_name: plugin_name.clone(),
+            },
+            Self::Config { message } => Self::Config {
+                message: message.clone(),
+            },
+            Self::Multiple { errors } => Self::Multiple {
+                errors: errors.clone(),
+            },
+        }
+    }
+}
 
 impl TlError {
     /// Create a lexer error with source context.
