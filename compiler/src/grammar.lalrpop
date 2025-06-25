@@ -57,7 +57,7 @@ pub Block: Block = {
     "{" <stmts:Statement*> <expr:Expression?> "}" => Block { stmts, expr }
 };
 
-pub Statement: Statement = {
+pub Statement<Identifier>: Statement = {
     <expr:Expression> ";" => Statement::Expression(expr),
     "let" <name:Identifier> "=" <expr:Expression> ";" => Statement::Let { name, expr },
     "return" <expr:Expression?> ";" => Statement::Return(expr),
