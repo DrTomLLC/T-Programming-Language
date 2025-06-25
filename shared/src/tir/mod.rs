@@ -365,7 +365,7 @@ impl TirBuilder {
                     }
                 }
             }
-            ast::ExprKind::Binary { left, op, right } => {
+            ast::ExprKind::Binary { left, lhs, op, right, rhs } => {
                 self.build_binary_op(left, op, right, expr.span)?;
             }
             _ => {
@@ -411,7 +411,7 @@ impl TirBuilder {
         op: &ast::BinaryOp,
         right: &ast::Expr,
         _span: SourceSpan,
-    ) -> Result<ValueId, E> {
+    ) -> Result<ValueId> {
         let left_value = self.build_expression(left)?;
         let right_value = self.build_expression(right)?;
         let result_id = self.next_value_id();
