@@ -163,7 +163,7 @@ pub enum TirTypeKind {
 }
 
 /// Constants in TIR
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TirConstant {
     Bool(bool),
     I8(i8), I16(i16), I32(i32), I64(i64), I128(i128), ISize(isize),
@@ -177,14 +177,14 @@ pub enum TirConstant {
 }
 
 /// Other TIR data structures
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirParam {
     pub name: String,
     pub ty: TirType,
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirLocal {
     pub name: String,
     pub ty: TirType,
