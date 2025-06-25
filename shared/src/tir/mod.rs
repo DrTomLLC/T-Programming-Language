@@ -411,7 +411,7 @@ impl TirBuilder {
         op: &ast::BinaryOp,
         right: &ast::Expr,
         _span: SourceSpan,
-    ) -> Result<ValueId> {
+    ) -> Result<ValueId, E> {
         let left_value = self.build_expression(left)?;
         let right_value = self.build_expression(right)?;
         let result_id = self.next_value_id();
