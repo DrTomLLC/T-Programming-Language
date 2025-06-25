@@ -5,7 +5,7 @@
 //! It performs type checking, safety analysis, and optimization while maintaining source location information.
 
 use crate::ast::{self, *};
-use errors::{TlError, Result};
+use errors::{TlError, *};
 use miette::SourceSpan;
 use std::collections::HashMap;
 
