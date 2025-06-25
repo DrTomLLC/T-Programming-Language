@@ -455,6 +455,7 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
+    use miette::SourceSpan;
     use super::*;
 
     #[test]
