@@ -13,6 +13,7 @@ mod literal;
 mod pattern;
 mod item;
 mod program;
+mod visitor;
 
 // Re-export all AST types
 pub use expr::*;
