@@ -21,7 +21,7 @@ pub use token::*;
 pub use tokenizer::*;
 
 // Re-export error handling
-pub use errors::{Result, TlError};
+pub use errors::*;
 
 /// Current version of the T-Lang language specification.
 pub const TLANG_VERSION: &str = "0.1.0";
