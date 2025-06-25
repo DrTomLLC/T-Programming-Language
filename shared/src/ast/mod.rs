@@ -10,6 +10,7 @@ pub mod literal;
 pub mod visitor;
 pub mod program;
 mod literal;
+mod pattern;
 
 // Re-export all AST types
 pub use expr::*;
