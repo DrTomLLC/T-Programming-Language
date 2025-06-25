@@ -1,46 +1,71 @@
-//! Basic I/O functions for T-Lang.
+//! Basic math functions for T-Lang.
 
-use std::io::{self, Write};
-
-/// Print without a trailing newline.
-pub fn print(s: &str) {
-    // Hook into T-Lang's runtime printing.
-    // For now, use Rust's stdout for development.
-    print!("{}", s);
+/// Absolute value of an integer.
+pub fn abs(x: i64) -> i64 {
+    x.abs()
 }
 
-/// Print with a trailing newline.
-pub fn println(s: &str) {
-    print(&format!("{}\n", s));
+/// Integer power: `base.pow(exp as u32)`
+pub fn pow(base: i64, exp: u32) -> i64 {
+    base.pow(exp)
 }
 
-/// Read a line of input from stdin (blocking).
-pub fn read_line() -> String {
-    let mut buffer = String::new();
-    // Flush stdout so prompt appears immediately.
-    io::stdout().flush().ok();
-    io::stdin()
-        .read_line(&mut buffer)
-        .expect("Failed to read line from stdin");
-    buffer.trim_end().to_string()
+/// Square root of a floating point number
+pub fn sqrt(x: f64) -> f64 {
+    x.sqrt()
 }
 
-/// Read all text from stdin until EOF
-pub fn read_all() -> String {
-    use std::io::Read;
-    let mut buffer = String::new();
-    io::stdin()
-        .read_to_string(&mut buffer)
-        .expect("Failed to read from stdin");
-    buffer
+/// Raise a float to a float power
+pub fn powf(base: f64, exp: f64) -> f64 {
+    base.powf(exp)
 }
 
-/// Print an error message to stderr
-pub fn eprint(s: &str) {
-    eprint!("{}", s);
+/// Natural logarithm
+pub fn ln(x: f64) -> f64 {
+    x.ln()
 }
 
-/// Print an error message to stderr with newline
-pub fn eprintln(s: &str) {
-    eprintln!("{}", s);
+/// Base 10 logarithm
+pub fn log10(x: f64) -> f64 {
+    x.log10()
+}
+
+/// Sine function
+pub fn sin(x: f64) -> f64 {
+    x.sin()
+}
+
+/// Cosine function
+pub fn cos(x: f64) -> f64 {
+    x.cos()
+}
+
+/// Tangent function
+pub fn tan(x: f64) -> f64 {
+    x.tan()
+}
+
+/// Mathematical constants
+pub const PI: f64 = std::f64::consts::PI;
+pub const E: f64 = std::f64::consts::E;
+
+/// Maximum of two values
+pub fn max<T: PartialOrd>(a: T, b: T) -> T {
+    if a >= b { a } else { b }
+}
+
+/// Minimum of two values
+pub fn min<T: PartialOrd>(a: T, b: T) -> T {
+    if a <= b { a } else { b }
+}
+
+/// Clamp a value between min and max
+pub fn clamp<T: PartialOrd>(value: T, min: T, max: T) -> T {
+    if value < min {
+        min
+    } else if value > max {
+        max
+    } else {
+        value
+    }
 }
