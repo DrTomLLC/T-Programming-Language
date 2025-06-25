@@ -280,7 +280,7 @@ impl TirBuilder {
         params: &[ast::FunctionParam],
         return_type: &Option<ast::Type>,
         body: &ast::Block,
-    ) -> Result<TirFunction> {
+    ) -> Result<TirFunction, E> {
         let mut parameters = Vec::new();
 
         for param in params {
