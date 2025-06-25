@@ -45,7 +45,7 @@ pub Field<Identifier>: Field = {
     <name:Identifier> ":" <ty:Type> => Field { name, ty }
 };
 
-pub Type: Type = {
+pub Type<Identifier>: Type = {
     Identifier => Type::Named(<>),
     "i32" => Type::I32,
     "f64" => Type::F64,
