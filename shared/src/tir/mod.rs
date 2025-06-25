@@ -230,7 +230,7 @@ pub struct TirImport {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirExport {
     pub name: String,
     pub ty: TirType,
@@ -245,7 +245,7 @@ pub struct TirAttribute {
 }
 
 // ID types for referencing TIR entities
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FunctionId(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
