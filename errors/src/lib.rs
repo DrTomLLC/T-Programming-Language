@@ -6,16 +6,20 @@
 //     source: Option<Box<dyn std::error::Error + Send + Sync>>,
 
 // The Io variant should look like this:
-#[derive(thiserror::Error, miette::Diagnostic)]
-#[error("I/O error: {message}")]
-#[diagnostic(code(t::io))]
-pub struct Io {
-    message: String,
-    #[source]
-    source: Option<Box<dyn std::error::Error + Send + Sync>>,
-}
+
 
 // And update the constructor method:
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+pub enum TlError {
+    #[error("I/O error: {message}")]
+    #[diagnostic(code(t::io))]
+    Io {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+}
+
 impl TlError {
     /// Create an I/O error.
     pub fn io(message: impl Into<String>, source: Option<std::io::Error>) -> Self {

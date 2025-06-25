@@ -1,46 +1,58 @@
-//! Fundamental collection types for T-Lang.
-//! For now, re-export or wrap Rust’s own; you can replace with custom structures later.
+//! Collections for T-Lang
+//! Wrapper around Rust's std collections for now
 
-use std::collections::HashMap as StdHashMap;
+// Re-export standard collections
+pub use std::collections::{HashMap, HashSet, BTreeMap, BTreeSet, VecDeque, LinkedList};
+pub use std::vec::Vec;
 
-/// A dynamically-sized, growable vector.
-pub type Vec<T> = std::vec::Vec<T>;
-
-/// A hash map from one type to another.
-pub struct HashMap<K, V> {
-    inner: StdHashMap<K, V>,
+/// Create a new vector
+pub fn vec<T>() -> Vec<T> {
+    Vec::new()
 }
 
-impl<K: std::hash::Hash + Eq, V> HashMap<K, V> {
-    /// Create a new, empty `HashMap`.
-    pub fn new() -> Self {
-        Self { inner: StdHashMap::new() }
-    }
+/// Create a new hash map
+pub fn hash_map<K, V>() -> HashMap<K, V>
+where
+    K: std::hash::Hash + Eq,
+{
+    HashMap::new()
+}
 
-    /// Insert a value into the map, returning the old value (if any).
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.inner.insert(key, value)
-    }
+/// Create a new hash set
+pub fn hash_set<T>() -> HashSet<T>
+where
+    T: std::hash::Hash + Eq,
+{
+    HashSet::new()
+}
 
-    /// Get a reference to a value by key.
-    pub fn get(&self, key: &K) -> Option<&V> {
-        self.inner.get(key)
-    }
+/// Create a vector from a slice
+pub fn vec_from_slice<T: Clone>(slice: &[T]) -> Vec<T> {
+    slice.to_vec()
+}
 
-    /// Remove a key from the map, returning the value if it existed.
-    pub fn remove(&mut self, key: &K) -> Option<V> {
-        self.inner.remove(key)
-    }
-
-    /// Number of elements in the map.
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    /// Returns true if the map contains no elements.
-    pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
+/// Get the length of any collection with a len() method
+pub trait Len {
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
-// Future collection types (String utilities, Set, etc.) go here.
+impl<T> Len for Vec<T> {
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
+}
+
+impl<K, V> Len for HashMap<K, V> {
+    fn len(&self) -> usize {
+        HashMap::len(self)
+    }
+}
+
+impl<T> Len for HashSet<T> {
+    fn len(&self) -> usize {
+        HashSet::len(self)
+    }
+}

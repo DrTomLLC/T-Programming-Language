@@ -1,34 +1,29 @@
-// File: tstd/src/lib.rs
-// -----------------------------------------------------------------------------
+// Fix for the source field in errors/src/lib.rs
+// Replace any line that looks like:
+//     source: Option<String>,
+// With:
+//     #[source]
+//     source: Option<Box<dyn std::error::Error + Send + Sync>>,
 
-//! Complete T-Lang standard library implementation.
-
-pub mod io;
-pub mod math;
-pub mod string;
-pub mod collections;
-pub mod time;
-pub mod fs;
-pub mod process;
-mod process;
-
-// Re-export commonly used items
-pub use io::{print, println, read_line};
-pub use math::{abs, sqrt, sin, cos, tan, ln, exp, pow};
-
-/// The prelude module contains the most commonly used items
-/// that are automatically imported into every T-Lang program.
-pub mod prelude {
-    pub use crate::io::{print, println};
-    pub use crate::math::{abs, sqrt};
-    pub use super::{Result, Option, Some, None, Ok, Err};
+// The Io variant should look like this:
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+#[error("I/O error: {message}")]
+#[diagnostic(code(t::io))]
+pub enum TlError {
+    Io {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 }
 
-/// Result type for operations that can fail
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-
-/// Option type for values that may be absent
-pub use std::option::Option::{self, Some, None};
-
-/// Result variants
-pub use std::result::Result::{Ok, Err};
+// And update the constructor method:
+impl TlError {
+    /// Create an I/O error.
+    pub fn io(message: impl Into<String>, source: Option<std::io::Error>) -> Self {
+        Self::Io {
+            message: message.into(),
+            source: source.map(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+}
