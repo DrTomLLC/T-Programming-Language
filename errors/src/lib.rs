@@ -302,7 +302,7 @@ impl TlError {
     pub fn io_with_source(message: impl Into<String>, source: std::io::Error) -> Self {
         Self::Io {
             message: message.into(),
-            source: Some(source),
+            source: Some(source.to_string()),
         }
     }
 
