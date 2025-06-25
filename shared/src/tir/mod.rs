@@ -55,7 +55,7 @@ pub struct TirInstruction {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TirInstructionKind {
     // Arithmetic operations
     Add { lhs: ValueId, rhs: ValueId },
@@ -100,7 +100,7 @@ pub enum TirInstructionKind {
 }
 
 /// Block terminators (control flow)
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TirTerminator {
     Return { value: Option<ValueId> },
     Branch { target: BlockId },
@@ -118,13 +118,13 @@ pub enum TirTerminator {
 }
 
 /// TIR type system
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TirType {
     pub kind: TirTypeKind,
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TirTypeKind {
     // Primitive types
     Bool,
