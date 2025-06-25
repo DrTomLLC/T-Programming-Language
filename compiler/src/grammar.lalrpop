@@ -37,7 +37,7 @@ pub Import: ImportDecl = {
     "import" <path:StringLiteral> ";" => ImportDecl { path },
 };
 
-pub Parameter: Parameter = {
+pub Parameter<Identifier>: Parameter = {
     <name:Identifier> ":" <ty:Type> => Parameter { name, ty }
 };
 
