@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Token {
     pub kind: TokenType,
     pub lexeme: String,
+    #[serde(skip)]
     pub span: SourceSpan,
     pub line: usize,
     pub col: usize,
