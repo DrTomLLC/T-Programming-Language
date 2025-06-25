@@ -2,7 +2,8 @@
 //! Statement definitions for T-Lang AST.
 
 use crate::{Span, span::HasSpan};
-use super::{Expr, Pattern, Type, Item};
+use super::{Expr, Pattern, Type};
+use crate::ast::Item;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
