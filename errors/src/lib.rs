@@ -22,6 +22,13 @@ pub enum TlError {
 
 impl TlError {
     /// Create an I/O error.
+    #[track_caller]
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::Internal {
+            message: message.into(),
+            location: std::panic::Location::caller().to_string(),
+        }
+    }
     pub fn io(message: impl Into<String>, source: Option<std::io::Error>) -> Self {
         Self::Io {
             message: message.into(),
