@@ -1,8 +1,55 @@
+# scaffold/Cargo.toml
+#
+# T-Lang Scaffold Compiler - Phase 1 Complete, Phase 2 Week 1 Day 1
+# Simple, working compiler to be systematically replaced in Phase 2
+
 [package]
-name = "tlang-scaffold"
+name = "scaffold"
 version = "0.1.0"
 edition = "2024"
+description = "T-Lang Scaffold Compiler - Proof of concept implementation"
+license = "MIT"
 
+# Main binary - the scaffold compiler
 [[bin]]
-name = "tlang-scaffold"
+name = "scaffold"
 path = "src/main.rs"
+
+# Integration test binary
+[[bin]]
+name = "integration_test"
+path = "tests/integration_test.rs"
+
+[dependencies]
+# Keep dependencies minimal for scaffold phase
+# These will be replaced with shared dependencies in Phase 2
+
+# NEW: Phase 2 Week 1 Day 1 - Error system integration
+errors = { path = "../errors" }
+miette = "7.0"
+
+[dev-dependencies]
+# Test dependencies if needed
+
+[profile.release]
+# Optimize for size and speed
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+# Fast compilation for development
+opt-level = 0
+debug = true
+
+[features]
+default = []
+
+# Feature flags for development
+verbose = []
+debug-ast = []
+debug-codegen = []
+
+[package.metadata.docs.rs]
+all-features = true
